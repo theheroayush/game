@@ -1,0 +1,1781 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex Arcade — Multi-Game Monorepo Portal</title>
+  <meta name="description" content="Next-Generation Web Games Hub featuring Project Apex 3D Racing, Apex Chess, Apex Ludo, and Apex Tic-Tac-Toe." />
+  <link rel="icon" type="image/svg+xml" href="./tictactoe/favicon.svg" />
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-base: #06080d;
+      --bg-surface: #0b0e17;
+      --bg-card: rgba(15, 20, 32, 0.78);
+      --bg-card-hover: rgba(22, 29, 46, 0.88);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.2);
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-ruby: #ef4444;
+      --accent-violet: #8b5cf6;
+      --accent-amber: #f59e0b;
+      
+      --font-display: 'Orbitron', sans-serif;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+      line-height: 1.6;
+      background: radial-gradient(circle at 50% 0%, #151a2e 0%, #07090e 70%, #030407 100%);
+    }
+
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(6, 8, 13, 0.75);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.6));
+      animation: pulseGlow 4s infinite alternate;
+    }
+
+    .brand-text {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #ffffff 0%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-links a:hover {
+      color: #38bdf8;
+      transform: translateY(-1px);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-sound {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-sound:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    .btn-github {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-github:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .hero {
+      text-align: center;
+      padding: 70px 0 40px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #38bdf8;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 5vw, 4.2rem);
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #ffffff 20%, #94a3b8 60%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      max-width: 760px;
+      margin: 0 auto 36px;
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      line-height: 1.7;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      max-width: 960px;
+      margin: 0 auto 50px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 18px 12px;
+      backdrop-filter: blur(16px);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .metric-val.cyan { color: var(--accent-cyan); }
+    .metric-val.emerald { color: var(--accent-emerald); }
+    .metric-val.ruby { color: var(--accent-ruby); }
+    .metric-val.violet { color: var(--accent-violet); }
+
+    .metric-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+    }
+
+    .search-box {
+      position: relative;
+      min-width: 260px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(15, 20, 32, 0.85);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 9px 16px 9px 38px;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+      margin-bottom: 70px;
+    }
+
+    .game-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 32px;
+      backdrop-filter: blur(24px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .game-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--theme-color);
+      opacity: 0.8;
+      box-shadow: 0 0 16px var(--theme-color);
+    }
+
+    .game-card:hover {
+      transform: translateY(-8px);
+      background: var(--bg-card-hover);
+      border-color: var(--theme-color);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px var(--theme-glow);
+    }
+
+    .card-racing {
+      --theme-color: var(--accent-cyan);
+      --theme-glow: rgba(6, 182, 212, 0.25);
+    }
+    .card-chess {
+      --theme-color: var(--accent-emerald);
+      --theme-glow: rgba(16, 185, 129, 0.25);
+    }
+    .card-ludo {
+      --theme-color: var(--accent-ruby);
+      --theme-glow: rgba(239, 68, 68, 0.25);
+    }
+    .card-tictactoe {
+      --theme-color: var(--accent-violet);
+      --theme-glow: rgba(139, 92, 246, 0.25);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .card-badge-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge.accent {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--theme-color);
+      border-color: var(--theme-color);
+    }
+
+    .card-visual {
+      height: 160px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.4) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .visual-art {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .visual-art svg {
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .game-card:hover .visual-art svg {
+      transform: scale(1.06);
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .icon {
+      font-size: 1.4rem;
+    }
+
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .tech-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .btn-launch {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 13px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      color: #030407;
+      background: var(--theme-color);
+      box-shadow: 0 4px 20px var(--theme-glow);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.15);
+      box-shadow: 0 8px 30px var(--theme-glow);
+    }
+
+    .btn-details {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 13px 18px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-details:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-hover);
+    }
+
+    .section-container {
+      margin-bottom: 70px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 40px;
+      backdrop-filter: blur(24px);
+    }
+
+    .section-head {
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .section-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .matrix-table th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px 18px;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+    }
+
+    .matrix-table td {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .matrix-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .matrix-table .game-name {
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-box {
+      background: #05070c;
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .terminal-top {
+      background: #090c15;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .terminal-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .term-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .term-tab.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .term-snippet {
+      user-select: all;
+      color: #e2e8f0;
+      line-height: 1.8;
+    }
+
+    .term-snippet .comment {
+      color: var(--text-dim);
+    }
+    .term-snippet .cmd {
+      color: #38bdf8;
+    }
+
+    .btn-copy {
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #38bdf8;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-copy:hover {
+      background: rgba(6, 182, 212, 0.3);
+      color: #ffffff;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #0d111d;
+      border: 1px solid var(--border-hover);
+      border-radius: 24px;
+      max-width: 680px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 36px;
+      position: relative;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+
+    .modal-header {
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .modal-section {
+      margin-bottom: 24px;
+    }
+
+    .modal-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .control-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .key-badge {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .key-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 40px 0;
+      margin-top: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .footer a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer a:hover {
+      color: var(--accent-cyan);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      border: 1px solid var(--accent-cyan);
+      color: #38bdf8;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1024px) {
+      .games-grid {
+        grid-template-columns: 1fr;
+      }
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .navbar {
+        flex-direction: column;
+        gap: 16px;
+      }
+      .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .controls-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+      .footer {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+
+    @keyframes pulseGlow {
+      0% { filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5)); }
+      100% { filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)); }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="app-container">
+    <header class="navbar">
+      <a href="#" class="brand">
+        <svg class="brand-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="24,4 44,14 44,34 24,44 4,34 4,14" stroke="#06B6D4" stroke-width="2.5" fill="rgba(6, 182, 212, 0.15)"/>
+          <polygon points="24,12 36,18 36,30 24,36 12,30 12,18" stroke="#8B5CF6" stroke-width="2" fill="rgba(139, 92, 246, 0.25)"/>
+          <circle cx="24" cy="24" r="4" fill="#38BDF8"/>
+        </svg>
+        <span class="brand-text">APEX ARCADE</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#games">🕹️ Games</a></li>
+        <li><a href="#matrix">📊 Tech Matrix</a></li>
+        <li><a href="#architecture">🏛️ Architecture</a></li>
+        <li><a href="#quickstart">⚡ Quick Start</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button id="soundToggle" class="btn-sound" title="Toggle Procedural Audio">
+          <span id="soundIcon">🔊</span> Audio
+        </button>
+        <a href="https://github.com/theheroayush/game" target="_blank" rel="noopener noreferrer" class="btn-github">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+    <section class="hero">
+      <div class="hero-eyebrow">✨ Production-Grade Web Games Collection</div>
+      <h1 class="hero-title">Apex Multi-Game Arcade</h1>
+      <p class="hero-desc">
+        A unified monorepo of 4 modern, high-performance web games engineered with Three.js 3D physics, FIDE-calibrated Minimax AI engines, server-authoritative multiplayer architectures, and zero-latency client execution.
+      </p>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-val cyan">4</div>
+          <div class="metric-label">Full-Stack Games</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val emerald">230+</div>
+          <div class="metric-label">Engine Test Checks</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val ruby">0 ms</div>
+          <div class="metric-label">Asset Latency</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val violet">100%</div>
+          <div class="metric-label">Zero-Overflow Layout</div>
+        </div>
+      </div>
+
+      <div class="controls-bar">
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="all">All Games (4)</button>
+          <button class="filter-btn" data-filter="strategy">Strategy & Board (2)</button>
+          <button class="filter-btn" data-filter="3d-action">3D & Action (1)</button>
+          <button class="filter-btn" data-filter="classic">Classic Arcade (1)</button>
+        </div>
+
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="gameSearch" class="search-input" placeholder="Search games, tech, rules..." />
+        </div>
+      </div>
+    </section>
+
+    <main id="games" class="games-grid">
+      
+      <!-- Card 1: Apex 3D Racing -->
+      <article class="game-card card-racing" data-category="3d-action" data-tags="threejs webgl typescript simcade 3d physics racing car audio">
+        <div class="card-header">
+          <div class="card-badge-group">
+            <span class="badge accent">3D WebGL</span>
+            <span class="badge">Simcade Physics</span>
+            <span class="badge">Three.js</span>
+          </div>
+        </div>
+
+        <div class="card-visual">
+          <div class="visual-art">
+            <svg width="220" height="120" viewBox="0 0 220 120" fill="none">
+              <line x1="10" y1="30" x2="70" y2="30" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.6"/>
+              <line x1="30" y1="50" x2="100" y2="50" stroke="#38bdf8" stroke-width="2" opacity="0.8"/>
+              <line x1="5" y1="75" x2="80" y2="75" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.5"/>
+              <path d="M 110 95 A 50 50 0 0 1 190 95" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round"/>
+              <path d="M 110 95 A 50 50 0 0 1 175 60" stroke="#06b6d4" stroke-width="8" stroke-linecap="round"/>
+              <polygon points="150,90 178,55 152,88" fill="#38bdf8"/>
+              <circle cx="150" cy="90" r="5" fill="#ffffff"/>
+              <path d="M 70 85 L 85 85 L 95 80 L 125 80 L 135 85 L 145 85 L 140 76 L 120 74 L 105 74 L 80 77 Z" fill="#06b6d4"/>
+              <circle cx="85" cy="86" r="6" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+              <circle cx="135" cy="86" r="6" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="card-title">
+            <span class="icon">🏎️</span> Project Apex 3D Racing
+          </h2>
+          <p class="card-desc">
+            High-octane open-wheel 3D racing simulator featuring simcade tire physics, slipstream drafting, dynamic particle smoke & sparks, AI grid opponents, telemetry HUD, and touch/gyro controls.
+          </p>
+        </div>
+
+        <div>
+          <div class="tech-tags">
+            <span class="tech-tag">Three.js</span>
+            <span class="tech-tag">WebGL</span>
+            <span class="tech-tag">TypeScript</span>
+            <span class="tech-tag">Web Audio</span>
+            <span class="tech-tag">Vite</span>
+          </div>
+
+          <div class="card-actions">
+            <a href="./apex/index.html" class="btn-launch" onclick="playSfx('launch')">
+              <span>🚀 Launch Game</span>
+            </a>
+            <button class="btn-details" onclick="openDetails('racing')">ℹ️ Details & Controls</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2: Apex Chess -->
+      <article class="game-card card-chess" data-category="strategy" data-tags="react typescript chess minimax 2500 elo grandmaster puzzles opening endgame">
+        <div class="card-header">
+          <div class="card-badge-group">
+            <span class="badge accent">React 19</span>
+            <span class="badge">TypeScript 6.0</span>
+            <span class="badge">2500+ Elo Minimax</span>
+          </div>
+        </div>
+
+        <div class="card-visual">
+          <div class="visual-art">
+            <svg width="220" height="120" viewBox="0 0 220 120" fill="none">
+              <path d="M 20 100 Q 60 40, 110 70 T 200 30" stroke="#10b981" stroke-width="3" fill="none" filter="drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))"/>
+              <circle cx="200" cy="30" r="5" fill="#10b981"/>
+              <rect x="30" y="20" width="16" height="16" fill="rgba(16, 185, 129, 0.3)"/>
+              <rect x="46" y="20" width="16" height="16" fill="rgba(255, 255, 255, 0.05)"/>
+              <rect x="30" y="36" width="16" height="16" fill="rgba(255, 255, 255, 0.05)"/>
+              <rect x="46" y="36" width="16" height="16" fill="rgba(16, 185, 129, 0.3)"/>
+              <path d="M 140 95 L 140 85 Q 140 65 155 55 Q 165 40 160 30 Q 150 25 145 35 Q 135 25 125 35 Q 120 50 128 65 L 120 95 Z" fill="#ffffff" opacity="0.9"/>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="card-title">
+            <span class="icon">♟️</span> Apex Chess
+          </h2>
+          <p class="card-desc">
+            Grandmaster web chess platform featuring human-calibrated 10-tier Minimax AI (600–2500+ Elo), 4 dynamic personalities, Coach Game Review with centipawn swing splines, Tactical Puzzle Rush, Endgame Drills, and FEN Editor.
+          </p>
+        </div>
+
+        <div>
+          <div class="tech-tags">
+            <span class="tech-tag">React 19</span>
+            <span class="tech-tag">TypeScript 6.0</span>
+            <span class="tech-tag">chess.js</span>
+            <span class="tech-tag">TailwindCSS</span>
+            <span class="tech-tag">Oxlint</span>
+          </div>
+
+          <div class="card-actions">
+            <a href="./chess/index.html" class="btn-launch" onclick="playSfx('launch')">
+              <span>♟️ Launch Game</span>
+            </a>
+            <button class="btn-details" onclick="openDetails('chess')">ℹ️ Details & Controls</button>
+          </div>
+        </div>
+      </article>
+      <!-- Card 3: Apex Ludo -->
+      <article class="game-card card-ludo" data-category="strategy" data-tags="react typescript ludo multiplayer websocket zustand vitest board dice">
+        <div class="card-header">
+          <div class="card-badge-group">
+            <span class="badge accent">Server-Authoritative</span>
+            <span class="badge">WebSocket</span>
+            <span class="badge">3D Physics Dice</span>
+          </div>
+        </div>
+
+        <div class="card-visual">
+          <div class="visual-art">
+            <svg width="220" height="120" viewBox="0 0 220 120" fill="none">
+              <rect x="40" y="15" width="40" height="40" rx="6" fill="#ef4444" opacity="0.75"/>
+              <rect x="90" y="15" width="40" height="40" rx="6" fill="#10b981" opacity="0.75"/>
+              <rect x="40" y="65" width="40" height="40" rx="6" fill="#3b82f6" opacity="0.75"/>
+              <rect x="90" y="65" width="40" height="40" rx="6" fill="#f59e0b" opacity="0.75"/>
+              <polygon points="85,55 88,62 95,62 90,66 92,73 85,69 78,73 80,66 75,62 82,62" fill="#ffffff"/>
+              <polygon points="165,35 190,48 165,61 140,48" fill="#ffffff"/>
+              <polygon points="140,48 165,61 165,90 140,77" fill="#cbd5e1"/>
+              <polygon points="165,61 190,48 190,77 165,90" fill="#94a3b8"/>
+              <circle cx="165" cy="48" r="3" fill="#ef4444"/>
+              <circle cx="152" cy="68" r="2.5" fill="#0f172a"/>
+              <circle cx="178" cy="68" r="2.5" fill="#0f172a"/>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="card-title">
+            <span class="icon">🎲</span> Apex Ludo
+          </h2>
+          <p class="card-desc">
+            Full-featured Ludo platform with true 15x15 SVG board, anti-cheat server engine, 4-tier bot AI (Easy to Expert), private room lobbies (e.g. `AB7K9`), local pass-and-play, and procedural Web Audio dice physics.
+          </p>
+        </div>
+
+        <div>
+          <div class="tech-tags">
+            <span class="tech-tag">React 18</span>
+            <span class="tech-tag">TypeScript 5.7</span>
+            <span class="tech-tag">Zustand</span>
+            <span class="tech-tag">WebSocket</span>
+            <span class="tech-tag">Vitest</span>
+          </div>
+
+          <div class="card-actions">
+            <a href="./ludo/index.html" class="btn-launch" onclick="playSfx('launch')">
+              <span>🎲 Launch Game</span>
+            </a>
+            <button class="btn-details" onclick="openDetails('ludo')">ℹ️ Details & Controls</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 4: Apex Tic-Tac-Toe -->
+      <article class="game-card card-tictactoe" data-category="classic" data-tags="react typescript tictactoe minimax arcade neon canvas particles">
+        <div class="card-header">
+          <div class="card-badge-group">
+            <span class="badge accent">Minimax AI</span>
+            <span class="badge">Neon Motion</span>
+            <span class="badge">Canvas Particles</span>
+          </div>
+        </div>
+
+        <div class="card-visual">
+          <div class="visual-art">
+            <svg width="220" height="120" viewBox="0 0 220 120" fill="none">
+              <line x1="75" y1="20" x2="75" y2="100" stroke="rgba(139, 92, 246, 0.4)" stroke-width="2"/>
+              <line x1="125" y1="20" x2="125" y2="100" stroke="rgba(139, 92, 246, 0.4)" stroke-width="2"/>
+              <line x1="35" y1="45" x2="165" y2="45" stroke="rgba(139, 92, 246, 0.4)" stroke-width="2"/>
+              <line x1="35" y1="75" x2="165" y2="75" stroke="rgba(139, 92, 246, 0.4)" stroke-width="2"/>
+              <line x1="45" y1="25" x2="65" y2="40" stroke="#8b5cf6" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="65" y1="25" x2="45" y2="40" stroke="#8b5cf6" stroke-width="3.5" stroke-linecap="round"/>
+              <circle cx="100" cy="60" r="10" stroke="#ec4899" stroke-width="3.5" fill="none"/>
+              <circle cx="145" cy="32" r="3" fill="#8b5cf6" filter="drop-shadow(0 0 6px #8b5cf6)"/>
+              <circle cx="55" cy="88" r="4" fill="#ec4899" filter="drop-shadow(0 0 6px #ec4899)"/>
+              <circle cx="145" cy="88" r="2.5" fill="#38bdf8"/>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="card-title">
+            <span class="icon">⚡</span> Apex Tic-Tac-Toe
+          </h2>
+          <p class="card-desc">
+            Futuristic motion-rich Tic-Tac-Toe featuring an unbeatable Minimax decision engine, 2-player pass-and-play, dynamic particle trails, win splines, and responsive cyberpunk aesthetics.
+          </p>
+        </div>
+
+        <div>
+          <div class="tech-tags">
+            <span class="tech-tag">React 18</span>
+            <span class="tech-tag">TypeScript</span>
+            <span class="tech-tag">TailwindCSS</span>
+            <span class="tech-tag">Canvas FX</span>
+          </div>
+
+          <div class="card-actions">
+            <a href="./tictactoe/index.html" class="btn-launch" onclick="playSfx('launch')">
+              <span>⚡ Launch Game</span>
+            </a>
+            <button class="btn-details" onclick="openDetails('tictactoe')">ℹ️ Details & Controls</button>
+          </div>
+        </div>
+      </article>
+
+    </main>
+
+    <!-- Tech Matrix Section -->
+    <section id="matrix" class="section-container">
+      <div class="section-head">
+        <div class="section-eyebrow">Comprehensive Engineering Spec</div>
+        <h2 class="section-title">Technology & Architecture Matrix</h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Game Title</th>
+              <th>Language / Framework</th>
+              <th>Physics / Engine</th>
+              <th>AI Decision Model</th>
+              <th>Rendering Engine</th>
+              <th>Audio Architecture</th>
+              <th>Multiplayer / Sync</th>
+              <th>Tests Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="game-name">🏎️ Project Apex 3D Racing</td>
+              <td>TypeScript • Three.js</td>
+              <td>Simcade Tire Friction + Raycast</td>
+              <td>Dynamic Spline Follower AI</td>
+              <td>WebGL 2.0 Canvas</td>
+              <td>Procedural Web Audio API</td>
+              <td>Local Time-Attack & AI Grid</td>
+              <td><span class="badge accent">Verified</span></td>
+            </tr>
+            <tr>
+              <td class="game-name">♟️ Apex Chess</td>
+              <td>React 19 • TypeScript 6.0</td>
+              <td>chess.js + Dedicated AI Worker</td>
+              <td>Minimax + Alpha-Beta (600-2500 Elo)</td>
+              <td>Responsive SVG + TailwindCSS</td>
+              <td>Web Audio Tone FX</td>
+              <td>Local Pass & Play + Coach</td>
+              <td><span class="badge accent">230+ Tests Passed</span></td>
+            </tr>
+            <tr>
+              <td class="game-name">🎲 Apex Ludo</td>
+              <td>React 18 • TypeScript 5.7</td>
+              <td>Strict Authoritative State Machine</td>
+              <td>4-Tier Heuristic Bot AI</td>
+              <td>15x15 Scalable Vector Graphics</td>
+              <td>Procedural Synthesizer</td>
+              <td>WebSocket JSON-RPC Rooms</td>
+              <td><span class="badge accent">13 Vitest Passed</span></td>
+            </tr>
+            <tr>
+              <td class="game-name">⚡ Apex Tic-Tac-Toe</td>
+              <td>React 18 • TypeScript</td>
+              <td>Deterministic Decision Tree</td>
+              <td>Unbeatable Minimax Algorithm</td>
+              <td>HTML5 Canvas FX + TailwindCSS</td>
+              <td>Web Audio Synthesis</td>
+              <td>Local Pass-and-Play</td>
+              <td><span class="badge accent">Verified</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Topology Section -->
+    <section id="architecture" class="section-container">
+      <div class="section-head">
+        <div class="section-eyebrow">System Topology</div>
+        <h2 class="section-title">Monorepo Architectural Layout</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; font-family: var(--font-mono); font-size: 0.85rem;">
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+          <div style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 8px;">/ (Root Portal)</div>
+          <div style="color: var(--text-muted); line-height: 1.6;">
+            • index.html (Launcher Hub)<br>
+            • README.md (Monorepo Docs)<br>
+            • .gitignore (Hygiene Filter)<br>
+            • Pure zero-latency static entry
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+          <div style="color: var(--accent-emerald); font-weight: 700; margin-bottom: 8px;">/chess (Apex Chess)</div>
+          <div style="color: var(--text-muted); line-height: 1.6;">
+            • React 19.2 + TS 6.0 + Vite 8<br>
+            • aiWorker.ts (Web Worker engine)<br>
+            • Quiescence + Transposition Cache<br>
+            • Puzzle Rush & Master Drills
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+          <div style="color: var(--accent-ruby); font-weight: 700; margin-bottom: 8px;">/ludo (Apex Ludo)</div>
+          <div style="color: var(--text-muted); line-height: 1.6;">
+            • React 18.3 + TS 5.7 + Vite 6<br>
+            • standalone.ts (WebSocket server)<br>
+            • Zustand turn synchronizer<br>
+            • Vitest automated engine tests
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+          <div style="color: var(--accent-violet); font-weight: 700; margin-bottom: 8px;">/apex & /tictactoe</div>
+          <div style="color: var(--text-muted); line-height: 1.6;">
+            • Three.js WebGL 3D Racing<br>
+            • Motion-rich Minimax Tic-Tac-Toe<br>
+            • Isolated standalone static bundles<br>
+            • High-performance canvas FX
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Start Command Center -->
+    <section id="quickstart" class="section-container">
+      <div class="section-head">
+        <div class="section-eyebrow">Developer Quick Start</div>
+        <h2 class="section-title">Execution & Build Commands</h2>
+      </div>
+
+      <div class="terminal-box">
+        <div class="terminal-top">
+          <div class="terminal-dots">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+          </div>
+          <div class="terminal-tabs">
+            <button class="term-tab active" onclick="switchTab('root')">Root Hub</button>
+            <button class="term-tab" onclick="switchTab('chess')">Apex Chess</button>
+            <button class="term-tab" onclick="switchTab('ludo')">Apex Ludo</button>
+            <button class="term-tab" onclick="switchTab('racing')">3D Racing</button>
+          </div>
+        </div>
+
+        <div class="terminal-body">
+          <div id="termCode" class="term-snippet">
+            <span class="comment"># Serve the complete Arcade Monorepo locally via any static server:</span><br>
+            <span class="cmd">npx serve .</span><br>
+            <span class="comment"># Then open http://localhost:3000 in your browser</span>
+          </div>
+
+          <button class="btn-copy" onclick="copySnippet()">📋 Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <span style="font-family: var(--font-display); font-weight: 700; color: #ffffff;">APEX ARCADE</span>
+        <span>• Created by Ayush UPADHYAY</span>
+        <span>• MIT License</span>
+      </div>
+
+      <div class="footer-right">
+        <a href="#games">Back to Top ↑</a>
+        <a href="https://github.com/theheroayush/game" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+      </div>
+    </footer>
+  </div>
+  <!-- Game Details Modal -->
+  <div id="detailsModal" class="modal-overlay" onclick="closeModalOnBackdrop(event)">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeDetails()">✕</button>
+
+      <div class="modal-header">
+        <h3 id="modalTitle" class="modal-title">Game Details</h3>
+        <p id="modalSubtitle" class="modal-subtitle">Technical Overview & Controls</p>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Game Overview & Mechanics</div>
+        <p id="modalDesc" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;"></p>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Controls Matrix</div>
+        <div id="modalControls" class="controls-grid"></div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Architecture & Engine Highlights</div>
+        <ul id="modalHighlights" style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8; padding-left: 20px;"></ul>
+      </div>
+
+      <div style="margin-top: 28px; display: flex; gap: 12px;">
+        <a id="modalLaunchBtn" href="#" class="btn-launch" style="text-align: center;">🚀 Launch Game Now</a>
+        <button class="btn-details" onclick="closeDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">Command copied to clipboard!</div>
+
+  <!-- Vanilla JavaScript Logic -->
+  <script>
+    const GAME_DATA = {
+      racing: {
+        title: "🏎️ Project Apex 3D Racing",
+        subtitle: "High-End Three.js WebGL Simcade Racing Simulator",
+        desc: "An immersive open-wheel 3D racing simulator engineered with Three.js. Features raycasted suspension and tire grip physics, dynamic track lighting, particle tire smoke, slipstream drafting behind AI opponents, and multiple responsive camera angles.",
+        url: "./apex/index.html",
+        controls: [
+          { key: "W / ↑", desc: "Accelerate Throttle" },
+          { key: "S / ↓", desc: "Brake / Reverse" },
+          { key: "A / ←", desc: "Steer Left" },
+          { key: "D / →", desc: "Steer Right" },
+          { key: "Spacebar", desc: "Handbrake Drift" },
+          { key: "C", desc: "Toggle Camera (Chase/Hood/Bumper)" },
+          { key: "R", desc: "Reset Vehicle to Track" },
+          { key: "Touch / Gyro", desc: "On-Screen Controls on Mobile" }
+        ],
+        highlights: [
+          "Custom Three.js WebGL shader pipeline with dynamic road reflections",
+          "Simcade tire slip-angle and lateral friction calculation",
+          "Dynamic AI opponent pathfinding with spline deviation and collision avoidance",
+          "Procedural engine audio tone synthesizer using Web Audio API"
+        ]
+      },
+      chess: {
+        title: "♟️ Apex Chess",
+        subtitle: "Grandmaster Chess Platform with 2500+ Elo Minimax AI",
+        desc: "A tournament-grade web chess platform built with React 19 and TypeScript 6.0. Features 10 human-calibrated Elo difficulty tiers (600 to 2500+), 4 distinct playing personalities (Grandmaster, Aggressive, Solid, Positional), Coach Game Review with centipawn accuracy, Tactical Puzzle Rush, Endgame Drills, and FEN Editor.",
+        url: "./chess/index.html",
+        controls: [
+          { key: "Left Click / Drag", desc: "Select & Move Pieces" },
+          { key: "Right Click", desc: "Draw Arrow / Highlight Square" },
+          { key: "Z / Undo", desc: "Takeback Last Move" },
+          { key: "Flip Board", desc: "Invert Perspective (White/Black)" },
+          { key: "Space / Arrow Keys", desc: "Navigate Move History / Replay" },
+          { key: "Coach Review", desc: "Trigger Centipawn Accuracy Analysis" }
+        ],
+        highlights: [
+          "Minimax Search with Alpha-Beta pruning, MVV-LVA move ordering, and Killer Heuristics",
+          "Quiescence search with 925cp delta pruning and 60,000-entry Transposition Table",
+          "Dedicated Web Worker (aiWorker.ts) for non-blocking 60fps UI performance",
+          "Comprehensive training suites: 15 Puzzles, 6 Endgame Drills, 15 Opening Repertoires"
+        ]
+      },
+      ludo: {
+        title: "🎲 Apex Ludo",
+        subtitle: "Multiplayer & Local Pass-and-Play 15x15 Ludo Platform",
+        desc: "A modern, responsive Ludo platform featuring a true 15x15 SVG board, strict server-authoritative state machine, 3D physics dice roller, 4-tier heuristic bot AI (Easy, Medium, Hard, Expert), private room lobbies (e.g. `AB7K9`), and procedural Web Audio sound synthesis.",
+        url: "./ludo/index.html",
+        controls: [
+          { key: "Click / Tap Dice", desc: "Initiate 3D Dice Roll" },
+          { key: "Click Token", desc: "Move Valid Highlighted Token" },
+          { key: "Room Code", desc: "Create or Join 6-Char Private Lobby" },
+          { key: "Pass & Play", desc: "Play 2-4 Players on One Screen" },
+          { key: "Bot Selector", desc: "Assign AI Bots to Empty Quadrants" }
+        ],
+        highlights: [
+          "Strict server-authoritative anti-cheat engine in TypeScript",
+          "15x15 normalized coordinate tracking (0–56 steps) with safe-zone star protections",
+          "Zustand state store with optimistic local UI and rollback resilience",
+          "100% test coverage with 13 passing Vitest suites"
+        ]
+      },
+      tictactoe: {
+        title: "⚡ Apex Tic-Tac-Toe",
+        subtitle: "Futuristic Motion-Rich Tic-Tac-Toe with Minimax AI",
+        desc: "A visually stunning cyberpunk Tic-Tac-Toe game featuring an unbeatable Minimax decision engine, 2-player pass-and-play, dynamic particle trails, win splines, and responsive dark styling.",
+        url: "./tictactoe/index.html",
+        controls: [
+          { key: "Click / Tap Cell", desc: "Place X or O in 3x3 Grid" },
+          { key: "Difficulty Toggle", desc: "Switch between Easy, Medium & Unbeatable" },
+          { key: "Mode Selector", desc: "Toggle Single Player vs 2-Player Pass-and-Play" },
+          { key: "Restart Button", desc: "Reset Board & Clear Particles" }
+        ],
+        highlights: [
+          "Deterministic Minimax decision tree with perfect game theoretic play",
+          "Interactive HTML5 canvas particle bursts and glowing neon trails",
+          "Zero-latency static bundle with full offline capability"
+        ]
+      }
+    };
+
+    const SNIPPETS = {
+      root: {
+        comment: "# Serve the complete Arcade Monorepo locally via any static server:",
+        cmd: "npx serve .\n# Open http://localhost:3000 in your browser"
+      },
+      chess: {
+        comment: "# Run Apex Chess in development or production mode:",
+        cmd: "cd chess\nnpm install\nnpm run dev      # Dev server on port 5173\nnpm run build    # Production build + typecheck"
+      },
+      ludo: {
+        comment: "# Run Apex Ludo client and WebSocket standalone server:",
+        cmd: "cd ludo\nnpm install\nnpm run dev      # Client dev server\nnpm run server   # Authoritative WebSocket server\nnpm run test     # Run Vitest test suite"
+      },
+      racing: {
+        comment: "# Open 3D Racing directly in any browser:",
+        cmd: "cd apex\n# Open index.html directly or serve with npx serve ."
+      }
+    };
+
+    const searchInput = document.getElementById('gameSearch');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const gameCards = document.querySelectorAll('.game-card');
+
+    let activeFilter = 'all';
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playSfx('click');
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    searchInput.addEventListener('input', () => {
+      applyFilters();
+    });
+
+    function applyFilters() {
+      const query = searchInput.value.toLowerCase().trim();
+
+      gameCards.forEach(card => {
+        const category = card.dataset.category;
+        const tags = (card.dataset.tags || '').toLowerCase();
+        const title = card.querySelector('.card-title').textContent.toLowerCase();
+        const desc = card.querySelector('.card-desc').textContent.toLowerCase();
+
+        const matchesFilter = activeFilter === 'all' || category === activeFilter;
+        const matchesQuery = !query || title.includes(query) || desc.includes(query) || tags.includes(query);
+
+        if (matchesFilter && matchesQuery) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function openDetails(gameKey) {
+      playSfx('modal');
+      const data = GAME_DATA[gameKey];
+      if (!data) return;
+
+      document.getElementById('modalTitle').textContent = data.title;
+      document.getElementById('modalSubtitle').textContent = data.subtitle;
+      document.getElementById('modalDesc').textContent = data.desc;
+      document.getElementById('modalLaunchBtn').href = data.url;
+
+      const controlsContainer = document.getElementById('modalControls');
+      controlsContainer.innerHTML = '';
+      data.controls.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'control-item';
+        div.innerHTML = `<span class="key-badge">${c.key}</span><span class="key-desc">${c.desc}</span>`;
+        controlsContainer.appendChild(div);
+      });
+
+      const highlightsContainer = document.getElementById('modalHighlights');
+      highlightsContainer.innerHTML = '';
+      data.highlights.forEach(h => {
+        const li = document.createElement('li');
+        li.textContent = h;
+        highlightsContainer.appendChild(li);
+      });
+
+      document.getElementById('detailsModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetails() {
+      playSfx('click');
+      document.getElementById('detailsModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target.id === 'detailsModal') {
+        closeDetails();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDetails();
+    });
+
+    let currentTab = 'root';
+    function switchTab(tabKey) {
+      playSfx('click');
+      currentTab = tabKey;
+      document.querySelectorAll('.term-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const snippet = SNIPPETS[tabKey];
+      const html = `<span class="comment">${snippet.comment}</span><br><span class="cmd">${snippet.cmd.replace(/\n/g, '<br>')}</span>`;
+      document.getElementById('termCode').innerHTML = html;
+    }
+
+    function copySnippet() {
+      playSfx('click');
+      const snippet = SNIPPETS[currentTab];
+      const textToCopy = `${snippet.comment}\n${snippet.cmd}`;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast("Command copied to clipboard!");
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSfx(type) {
+      if (!soundEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'click') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        } else if (type === 'modal') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'launch') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      } catch (err) {}
+    }
+
+    const soundToggle = document.getElementById('soundToggle');
+    const soundIcon = document.getElementById('soundIcon');
+    soundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+      showToast(soundEnabled ? "Audio enabled" : "Audio muted");
+    });
+
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.4;
+        this.vy = (Math.random() - 0.5) * 0.4;
+        this.size = Math.random() * 2 + 0.8;
+        this.alpha = Math.random() * 0.5 + 0.2;
+        this.hue = Math.random() > 0.5 ? 188 : 265;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+          this.reset();
+        }
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = "hsla(" + this.hue + ", 90%, 65%, " + this.alpha + ")";
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 45; i++) {
+      particles.push(new Particle());
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = "rgba(6, 182, 212, " + (0.12 * (1 - dist / 120)) + ")";
+            ctx.stroke();
+          }
+        }
+      }
+
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+  </script>
+</body>
+</html>
