@@ -30,7 +30,6 @@ import {
   Target,
   Check,
   X,
-  Lightbulb,
   Download,
   Share2,
   Save,
@@ -77,7 +76,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({
 
   // Puzzle / Retry Mode State
   const [retryMode, setRetryMode] = useState<boolean>(false);
-  const [retryStatus, setRetryStatus] = useState<'idle' | 'success' | 'incorrect'>('idle');
+  const [_retryStatus, setRetryStatus] = useState<'idle' | 'success' | 'incorrect'>('idle');
   const [retryCustomChess, setRetryCustomChess] = useState<Chess | null>(null);
   const [showHint, setShowHint] = useState<boolean>(false);
 
