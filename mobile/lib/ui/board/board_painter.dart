@@ -11,7 +11,7 @@ class BoardArrow {
   const BoardArrow({
     required this.from,
     required this.to,
-    this.color = const Color(0xFF22C55E), // Green default
+    this.color = const Color(0xFF22C55E), // Neon Green default
   });
 }
 
@@ -25,6 +25,9 @@ class BoardPainter extends CustomPainter {
   final List<String> legalSquares;
   final List<BoardArrow> arrows;
   final bool showCoordinates;
+  final double leftGutter;
+  final double bottomGutter;
+  final double borderRadius;
 
   BoardPainter({
     required this.themeId,
@@ -36,24 +39,48 @@ class BoardPainter extends CustomPainter {
     this.legalSquares = const [],
     this.arrows = const [],
     this.showCoordinates = true,
+    this.leftGutter = 22.0,
+    this.bottomGutter = 22.0,
+    this.borderRadius = 10.0,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final squareSize = size.width / 8;
+    final effectiveLeftGutter = showCoordinates ? leftGutter : 0.0;
+    final effectiveBottomGutter = showCoordinates ? bottomGutter : 0.0;
+
+    final boardWidth = size.width - effectiveLeftGutter;
+    final boardHeight = size.height - effectiveBottomGutter;
+    final boardSize = min(boardWidth, boardHeight);
+    final squareSize = boardSize / 8;
+
     final theme = BOARD_THEMES[themeId] ?? BOARD_THEMES[BoardThemeId.emerald]!;
 
     final lightPaint = Paint()..color = Color(theme.lightSquare);
     final darkPaint = Paint()..color = Color(theme.darkSquare);
-    final selectedPaint = Paint()..color = Color(theme.selectedSquare).withAlpha(160);
-    final lastMovePaint = Paint()..color = Color(theme.lastMoveSquare).withAlpha(120);
-    final checkPaint = Paint()..color = Color(theme.checkSquare).withAlpha(180);
 
-    // 1. Draw 8x8 squares
+    final boardRect = Rect.fromLTWH(effectiveLeftGutter, 0, boardSize, boardSize);
+    final boardRRect = RRect.fromRectAndRadius(boardRect, Radius.circular(borderRadius));
+
+    // 1. Draw subtle board elevation shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withAlpha(140)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+    canvas.drawRRect(boardRRect.shift(const Offset(0, 3)), shadowPaint);
+
+    // 2. Draw 8x8 Board Squares with Rounded Clipping
+    canvas.save();
+    canvas.clipRRect(boardRRect);
+
     for (int r = 0; r < 8; r++) {
       for (int f = 0; f < 8; f++) {
         final isLight = (r + f) % 2 == 0;
-        final rect = Rect.fromLTWH(f * squareSize, r * squareSize, squareSize, squareSize);
+        final rect = Rect.fromLTWH(
+          effectiveLeftGutter + f * squareSize,
+          r * squareSize,
+          squareSize,
+          squareSize,
+        );
         canvas.drawRect(rect, isLight ? lightPaint : darkPaint);
 
         // Calculate algebraic square
@@ -61,73 +88,138 @@ class BoardPainter extends CustomPainter {
         final rankNum = flipped ? r + 1 : 8 - r;
         final sq = '$fileChar$rankNum';
 
-        // Last move highlight
+        // Last move highlight: Neon Emerald Green Glow & Outline
         if (sq == lastMoveFrom || sq == lastMoveTo) {
-          canvas.drawRect(rect, lastMovePaint);
+          final highlightRRect = RRect.fromRectAndRadius(
+            rect.deflate(1.5),
+            const Radius.circular(5.0),
+          );
+
+          // Translucent fill
+          final fillPaint = Paint()
+            ..color = const Color(0xFF22C55E).withAlpha(55)
+            ..style = PaintingStyle.fill;
+          canvas.drawRRect(highlightRRect, fillPaint);
+
+          // Soft neon glow border
+          final glowPaint = Paint()
+            ..color = const Color(0xFF22C55E).withAlpha(110)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5);
+          canvas.drawRRect(highlightRRect, glowPaint);
+
+          // Crisp neon green border
+          final strokePaint = Paint()
+            ..color = const Color(0xFF4ADE80)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0;
+          canvas.drawRRect(highlightRRect, strokePaint);
         }
 
         // Selected square highlight
         if (sq == selectedSquare) {
-          canvas.drawRect(rect, selectedPaint);
+          final selRRect = RRect.fromRectAndRadius(
+            rect.deflate(1.5),
+            const Radius.circular(5.0),
+          );
+          final selFill = Paint()
+            ..color = const Color(0xFF10B981).withAlpha(80)
+            ..style = PaintingStyle.fill;
+          canvas.drawRRect(selRRect, selFill);
+
+          final selStroke = Paint()
+            ..color = const Color(0xFF34D399)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5;
+          canvas.drawRRect(selRRect, selStroke);
         }
 
-        // Check highlight
+        // Check highlight (Red glow on king)
         if (sq == checkSquare) {
+          final checkPaint = Paint()
+            ..color = const Color(0xFFEF4444).withAlpha(160)
+            ..style = PaintingStyle.fill;
           canvas.drawRect(rect, checkPaint);
-        }
-
-        // Coordinates
-        if (showCoordinates) {
-          final coordColor = isLight ? Color(theme.darkSquare) : Color(theme.lightSquare);
-          final textStyle = TextStyle(color: coordColor.withAlpha(200), fontSize: 10, fontWeight: FontWeight.bold);
-
-          // Draw rank number on left file (f == 0)
-          if (f == 0) {
-            final textSpan = TextSpan(text: '$rankNum', style: textStyle);
-            final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
-            tp.layout();
-            tp.paint(canvas, Offset(f * squareSize + 2, r * squareSize + 2));
-          }
-
-          // Draw file letter on bottom rank (r == 7)
-          if (r == 7) {
-            final textSpan = TextSpan(text: fileChar, style: textStyle);
-            final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
-            tp.layout();
-            tp.paint(canvas, Offset((f + 1) * squareSize - tp.width - 2, (r + 1) * squareSize - tp.height - 2));
-          }
         }
       }
     }
 
-    // 2. Draw Legal Move indicators
-    final dotPaint = Paint()..color = Colors.black.withAlpha(70);
+    // 3. Draw Legal Move indicators
+    final moveDotPaint = Paint()..color = Colors.black.withAlpha(75);
 
     for (final sq in legalSquares) {
       final f = flipped ? 7 - (sq.codeUnitAt(0) - 'a'.codeUnitAt(0)) : sq.codeUnitAt(0) - 'a'.codeUnitAt(0);
       final r = flipped ? int.parse(sq[1]) - 1 : 8 - int.parse(sq[1]);
-      final center = Offset(f * squareSize + squareSize / 2, r * squareSize + squareSize / 2);
+      final center = Offset(
+        effectiveLeftGutter + f * squareSize + squareSize / 2,
+        r * squareSize + squareSize / 2,
+      );
 
-      canvas.drawCircle(center, squareSize * 0.16, dotPaint);
+      canvas.drawCircle(center, squareSize * 0.15, moveDotPaint);
     }
 
-    // 3. Draw Vector Arrows
+    // 4. Draw Vector Arrows
     for (final arrow in arrows) {
-      _drawArrow(canvas, size, squareSize, arrow.from, arrow.to, arrow.color);
+      _drawArrow(canvas, effectiveLeftGutter, squareSize, arrow.from, arrow.to, arrow.color);
+    }
+
+    canvas.restore(); // End of clipped board
+
+    // 5. Draw crisp board outline border
+    final borderPaint = Paint()
+      ..color = const Color(0xFF27272A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRRect(boardRRect, borderPaint);
+
+    // 6. Draw Outside Coordinates (left gutter: ranks 8..1, bottom gutter: files a..h)
+    if (showCoordinates) {
+      const coordStyle = TextStyle(
+        color: Color(0xFF94A3B8),
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+      );
+
+      // Ranks on left gutter
+      for (int r = 0; r < 8; r++) {
+        final rankNum = flipped ? r + 1 : 8 - r;
+        final tp = TextPainter(
+          text: TextSpan(text: '$rankNum', style: coordStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final x = (effectiveLeftGutter - tp.width) / 2 - 1.0;
+        final y = r * squareSize + (squareSize - tp.height) / 2;
+        tp.paint(canvas, Offset(x, y));
+      }
+
+      // Files on bottom gutter
+      for (int f = 0; f < 8; f++) {
+        final fileChar = String.fromCharCode('a'.codeUnitAt(0) + (flipped ? 7 - f : f));
+        final tp = TextPainter(
+          text: TextSpan(text: fileChar, style: coordStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final x = effectiveLeftGutter + f * squareSize + (squareSize - tp.width) / 2;
+        final y = boardSize + (effectiveBottomGutter - tp.height) / 2 + 1.0;
+        tp.paint(canvas, Offset(x, y));
+      }
     }
   }
 
-  void _drawArrow(Canvas canvas, Size size, double squareSize, String from, String to, Color color) {
+  void _drawArrow(Canvas canvas, double leftGutter, double squareSize, String from, String to, Color color) {
     final f1 = flipped ? 7 - (from.codeUnitAt(0) - 'a'.codeUnitAt(0)) : from.codeUnitAt(0) - 'a'.codeUnitAt(0);
     final r1 = flipped ? int.parse(from[1]) - 1 : 8 - int.parse(from[1]);
     final f2 = flipped ? 7 - (to.codeUnitAt(0) - 'a'.codeUnitAt(0)) : to.codeUnitAt(0) - 'a'.codeUnitAt(0);
     final r2 = flipped ? int.parse(to[1]) - 1 : 8 - int.parse(to[1]);
 
-    final start = Offset(f1 * squareSize + squareSize / 2, r1 * squareSize + squareSize / 2);
-    final end = Offset(f2 * squareSize + squareSize / 2, r2 * squareSize + squareSize / 2);
+    final start = Offset(leftGutter + f1 * squareSize + squareSize / 2, r1 * squareSize + squareSize / 2);
+    final end = Offset(leftGutter + f2 * squareSize + squareSize / 2, r2 * squareSize + squareSize / 2);
 
     final arrowPaint = Paint()
-      ..color = color.withAlpha(200)
+      ..color = color.withAlpha(220)
       ..strokeWidth = 5.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -152,7 +244,7 @@ class BoardPainter extends CustomPainter {
     path.close();
 
     final headPaint = Paint()
-      ..color = color.withAlpha(200)
+      ..color = color.withAlpha(220)
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(path, headPaint);
@@ -167,6 +259,10 @@ class BoardPainter extends CustomPainter {
         oldDelegate.lastMoveTo != lastMoveTo ||
         oldDelegate.checkSquare != checkSquare ||
         oldDelegate.legalSquares.length != legalSquares.length ||
-        oldDelegate.arrows.length != arrows.length;
+        oldDelegate.arrows.length != arrows.length ||
+        oldDelegate.showCoordinates != showCoordinates ||
+        oldDelegate.leftGutter != leftGutter ||
+        oldDelegate.bottomGutter != bottomGutter ||
+        oldDelegate.borderRadius != borderRadius;
   }
 }

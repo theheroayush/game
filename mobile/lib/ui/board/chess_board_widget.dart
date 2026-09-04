@@ -16,6 +16,7 @@ class ChessBoardWidget extends StatefulWidget {
   final String? lastMoveFrom;
   final String? lastMoveTo;
   final List<BoardArrow> arrows;
+  final bool showCoordinates;
   final Function(String from, String to, String? promotion)? onMove;
   final VoidCallback? onBoardChanged;
 
@@ -29,6 +30,7 @@ class ChessBoardWidget extends StatefulWidget {
     this.lastMoveFrom,
     this.lastMoveTo,
     this.arrows = const [],
+    this.showCoordinates = true,
     this.onMove,
     this.onBoardChanged,
   });
@@ -187,41 +189,55 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final boardSize = min(constraints.maxWidth, constraints.maxHeight > 0 ? constraints.maxHeight : constraints.maxWidth);
+        final leftGutter = widget.showCoordinates ? 22.0 : 0.0;
+        final bottomGutter = widget.showCoordinates ? 22.0 : 0.0;
+
+        final availW = constraints.maxWidth;
+        final availH = constraints.maxHeight > 0 ? constraints.maxHeight : constraints.maxWidth;
+
+        final boardSize = min(availW - leftGutter, availH - bottomGutter);
         final squareSize = boardSize / 8;
+        final totalWidth = leftGutter + boardSize;
+        final totalHeight = boardSize + bottomGutter;
         final checkSq = _findKingCheckSquare();
 
-        return SizedBox(
-          width: boardSize,
-          height: boardSize,
-          child: Stack(
-            children: [
-              // 1. Board Background and Arrows Canvas
-              CustomPaint(
-                size: Size(boardSize, boardSize),
-                painter: BoardPainter(
-                  themeId: widget.boardTheme,
-                  flipped: widget.flipped,
-                  selectedSquare: _selectedSquare,
-                  lastMoveFrom: widget.lastMoveFrom,
-                  lastMoveTo: widget.lastMoveTo,
-                  checkSquare: checkSq,
-                  legalSquares: _legalDestinations,
-                  arrows: widget.arrows,
-                ),
-              ),
-
-              // 2. Interactive Pieces & Tap detector Grid
-              for (int r = 0; r < 8; r++)
-                for (int f = 0; f < 8; f++)
-                  Positioned(
-                    left: f * squareSize,
-                    top: r * squareSize,
-                    width: squareSize,
-                    height: squareSize,
-                    child: _buildSquareInteractive(f, r, squareSize),
+        return Center(
+          child: SizedBox(
+            width: totalWidth,
+            height: totalHeight,
+            child: Stack(
+              children: [
+                // 1. Board Background, Outlines, Coordinates, and Arrows Canvas
+                CustomPaint(
+                  size: Size(totalWidth, totalHeight),
+                  painter: BoardPainter(
+                    themeId: widget.boardTheme,
+                    flipped: widget.flipped,
+                    selectedSquare: _selectedSquare,
+                    lastMoveFrom: widget.lastMoveFrom,
+                    lastMoveTo: widget.lastMoveTo,
+                    checkSquare: checkSq,
+                    legalSquares: _legalDestinations,
+                    arrows: widget.arrows,
+                    showCoordinates: widget.showCoordinates,
+                    leftGutter: leftGutter,
+                    bottomGutter: bottomGutter,
+                    borderRadius: 10.0,
                   ),
-            ],
+                ),
+
+                // 2. Interactive Pieces & Tap detector Grid
+                for (int r = 0; r < 8; r++)
+                  for (int f = 0; f < 8; f++)
+                    Positioned(
+                      left: leftGutter + f * squareSize,
+                      top: r * squareSize,
+                      width: squareSize,
+                      height: squareSize,
+                      child: _buildSquareInteractive(f, r, squareSize),
+                    ),
+              ],
+            ),
           ),
         );
       },

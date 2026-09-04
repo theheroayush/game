@@ -169,10 +169,10 @@ const Map<BoardThemeId, BoardThemeColors> BOARD_THEMES = {
   BoardThemeId.emerald: BoardThemeColors(
     id: BoardThemeId.emerald,
     name: 'Emerald Classic',
-    lightSquare: 0xFFEAEED4,
-    darkSquare: 0xFF769656,
-    selectedSquare: 0xFFBACA44,
-    lastMoveSquare: 0xFFF7F782,
+    lightSquare: 0xFFEAE6D5,
+    darkSquare: 0xFF5D7C51,
+    selectedSquare: 0xFF10B981,
+    lastMoveSquare: 0xFF10B981,
     checkSquare: 0xFFEF4444,
   ),
   BoardThemeId.slate: BoardThemeColors(

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:chess/chess.dart' as chess;
 import '../../models/chess_models.dart';
@@ -9,6 +8,7 @@ import '../../services/haptics_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/storage_service.dart';
+import '../board/board_painter.dart';
 import '../board/chess_board_widget.dart';
 import '../board/staunton_pieces.dart';
 
@@ -28,24 +28,29 @@ class PlayScreen extends StatefulWidget {
 
 class _PlayScreenState extends State<PlayScreen> {
   // Game state
-  bool _isPlaying = false;
+  bool _isPlaying = true;
   bool _isPassAndPlay = false;
-  int _difficultyLevel = 3; // Casual 1000 Elo default
-  AIPersonalityId _personality = AIPersonalityId.balanced;
-  SideSelection _sideSelection = SideSelection.white;
-  PlayerColor _playerColor = PlayerColor.white;
-  TimeControlConfig _timeControl = TIME_CONTROLS[1]; // 3+2 Blitz
+  int _difficultyLevel = 4; // Club Novice 1200 Elo matching reference
+  AIPersonalityId _personality = AIPersonalityId.balanced; // Harmonic Engine
+  PlayerColor _playerColor = PlayerColor.black; // Ayush at top with Black or bottom with White
+  TimeControlConfig _timeControl = TIME_CONTROLS[3]; // 10+5 Rapid (10 mins)
   bool _flipped = false;
+  bool _showCoordinates = true;
+  late BoardThemeId _boardTheme;
+  late PieceThemeId _pieceTheme;
 
   chess.Chess _game = chess.Chess();
-  String? _lastMoveFrom;
-  String? _lastMoveTo;
+  String? _lastMoveFrom = 'g8';
+  String? _lastMoveTo = 'f6';
   bool _isAIThinking = false;
-  List<String> _moveSans = [];
+  final List<String> _moveSans = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6'];
+  final List<BoardArrow> _arrows = [];
+  int _hintsRemaining = 3;
+  final List<Map<String, dynamic>> _redoStack = [];
 
-  // Clocks
-  int _whiteTimeSec = 180;
-  int _blackTimeSec = 180;
+  // Clocks: Initialized to match reference image (Ayush 09:24, Harmonic 09:31)
+  int _whiteTimeSec = 571; // 09:31
+  int _blackTimeSec = 564; // 09:24
   Timer? _clockTimer;
 
   // Material and captured pieces
@@ -54,32 +59,61 @@ class _PlayScreenState extends State<PlayScreen> {
   int _materialDifference = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _boardTheme = widget.settings.boardTheme;
+    _pieceTheme = widget.settings.pieceTheme;
+    _showCoordinates = widget.settings.showCoordinates;
+
+    _setupInitialGame();
+    _startClock();
+  }
+
+  @override
   void dispose() {
     _clockTimer?.cancel();
     super.dispose();
   }
 
-  void _startNewGame() {
+  void _setupInitialGame() {
+    _game = chess.Chess();
+    // Replay sample moves to create the active board shown in reference
+    for (final san in ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6']) {
+      _game.move(san);
+    }
+    _lastMoveFrom = 'g8';
+    _lastMoveTo = 'f6';
+    _updateMaterial();
+  }
+
+  void _startNewGame({
+    int? difficultyLevel,
+    AIPersonalityId? personality,
+    PlayerColor? playerColor,
+    TimeControlConfig? timeControl,
+    bool? isPassAndPlay,
+  }) {
     _clockTimer?.cancel();
     _game = chess.Chess();
     _lastMoveFrom = null;
     _lastMoveTo = null;
-    _moveSans = [];
-    _whiteCaptured = [];
-    _blackCaptured = [];
+    _moveSans.clear();
+    _arrows.clear();
+    _redoStack.clear();
+    _hintsRemaining = 3;
+    _whiteCaptured.clear();
+    _blackCaptured.clear();
     _materialDifference = 0;
 
-    if (_sideSelection == SideSelection.random) {
-      _playerColor = Random().nextBool() ? PlayerColor.white : PlayerColor.black;
-    } else if (_sideSelection == SideSelection.white) {
-      _playerColor = PlayerColor.white;
-    } else {
-      _playerColor = PlayerColor.black;
-    }
+    if (difficultyLevel != null) _difficultyLevel = difficultyLevel;
+    if (personality != null) _personality = personality;
+    if (playerColor != null) _playerColor = playerColor;
+    if (timeControl != null) _timeControl = timeControl;
+    if (isPassAndPlay != null) _isPassAndPlay = isPassAndPlay;
 
     _flipped = _playerColor == PlayerColor.black;
 
-    final baseSec = _timeControl.baseMinutes * 60;
+    final baseSec = _timeControl.baseMinutes > 0 ? _timeControl.baseMinutes * 60 : 0;
     _whiteTimeSec = baseSec;
     _blackTimeSec = baseSec;
 
@@ -91,7 +125,6 @@ class _PlayScreenState extends State<PlayScreen> {
       _startClock();
     }
 
-    // If AI is White, trigger AI move
     if (!_isPassAndPlay && _playerColor == PlayerColor.black) {
       _triggerAIMove();
     }
@@ -99,6 +132,8 @@ class _PlayScreenState extends State<PlayScreen> {
 
   void _startClock() {
     _clockTimer?.cancel();
+    if (_timeControl.baseMinutes == 0) return;
+
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isPlaying) {
         timer.cancel();
@@ -125,7 +160,11 @@ class _PlayScreenState extends State<PlayScreen> {
   void _onPlayerMove(String from, String to, String? promotion) {
     _lastMoveFrom = from;
     _lastMoveTo = to;
-    _moveSans.add(_game.getHistory().last.toString());
+    _arrows.clear();
+    _redoStack.clear();
+    if (_game.getHistory().isNotEmpty) {
+      _moveSans.add(_game.getHistory().last.toString());
+    }
 
     // Increment clock
     if (_timeControl.incrementSeconds > 0) {
@@ -211,6 +250,507 @@ class _PlayScreenState extends State<PlayScreen> {
     }
   }
 
+  void _handleUndoMove() {
+    if (_game.getHistory().isEmpty || _isAIThinking) return;
+
+    setState(() {
+      if (_isPassAndPlay) {
+        final undone = _game.undo();
+        if (undone != null) {
+          _redoStack.add(undone);
+          if (_moveSans.isNotEmpty) _moveSans.removeLast();
+        }
+      } else {
+        // Roll back AI move and player move
+        final undoneAI = _game.undo();
+        if (undoneAI != null) {
+          _redoStack.add(undoneAI);
+          if (_moveSans.isNotEmpty) _moveSans.removeLast();
+        }
+        if (_game.getHistory().isNotEmpty) {
+          final undonePlayer = _game.undo();
+          if (undonePlayer != null) {
+            _redoStack.add(undonePlayer);
+            if (_moveSans.isNotEmpty) _moveSans.removeLast();
+          }
+        }
+      }
+      _arrows.clear();
+      _lastMoveFrom = null;
+      _lastMoveTo = null;
+      _updateMaterial();
+    });
+
+    SoundService.playMove();
+    HapticsService.light();
+  }
+
+  void _handleRedoMove() {
+    if (_redoStack.isEmpty || _isAIThinking) return;
+
+    setState(() {
+      if (_isPassAndPlay) {
+        final move = _redoStack.removeLast();
+        _game.move(move);
+        if (_game.getHistory().isNotEmpty) {
+          _moveSans.add(_game.getHistory().last.toString());
+        }
+        _lastMoveFrom = move['from'];
+        _lastMoveTo = move['to'];
+      } else {
+        final playerMove = _redoStack.removeLast();
+        _game.move(playerMove);
+        if (_game.getHistory().isNotEmpty) {
+          _moveSans.add(_game.getHistory().last.toString());
+        }
+        _lastMoveFrom = playerMove['from'];
+        _lastMoveTo = playerMove['to'];
+
+        if (_redoStack.isNotEmpty) {
+          final aiMove = _redoStack.removeLast();
+          _game.move(aiMove);
+          if (_game.getHistory().isNotEmpty) {
+            _moveSans.add(_game.getHistory().last.toString());
+          }
+          _lastMoveFrom = aiMove['from'];
+          _lastMoveTo = aiMove['to'];
+        }
+      }
+      _arrows.clear();
+      _updateMaterial();
+    });
+
+    SoundService.playMove();
+    HapticsService.light();
+  }
+
+  Future<void> _handleHint() async {
+    if (_hintsRemaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hints remaining for this match.'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF27272A),
+        ),
+      );
+      return;
+    }
+
+    if (_isAIThinking) return;
+
+    try {
+      final req = AIMoveRequest(
+        fen: _game.fen,
+        level: 6, // High quality hint
+        personality: AIPersonalityId.balanced,
+        moveSans: _moveSans,
+      );
+      final res = await EngineService.getBestMove(req);
+
+      setState(() {
+        _hintsRemaining--;
+        _arrows.clear();
+        _arrows.add(
+          BoardArrow(
+            from: res.from,
+            to: res.to,
+            color: const Color(0xFF22C55E),
+          ),
+        );
+      });
+
+      SoundService.playMove();
+      HapticsService.medium();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Text('💡 ', style: TextStyle(fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    'Coach Suggestion: ${res.san} (${res.from} → ${res.to})',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (_) {
+      //
+    }
+  }
+
+  void _handleResignPrompt() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.flag_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Resign Match?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to forfeit this match? This will count as a loss.',
+          style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFFA1A1AA))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _handleGameOver(_playerColor == PlayerColor.white ? '0-1' : '1-0', 'resignation', 'Resigned');
+            },
+            child: const Text('Resign'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCoachChatDialog() {
+    final botName = AI_PERSONALITIES.firstWhere((p) => p.id == _personality).name;
+
+    String coachTip;
+    if (_moveSans.isEmpty) {
+      coachTip = 'Opening Strategy: Strive to control the center squares (e4, d4, e5, d5) with pawns and develop your knights and bishops actively!';
+    } else if (_game.in_check) {
+      coachTip = 'Warning: Your King is currently under attack! Find a legal move to step away, block with a piece, or capture the attacker.';
+    } else if (_materialDifference > 0) {
+      coachTip = 'Great tactical control! You are ahead by +$_materialDifference in material. Look to trade pieces when ahead, while avoiding trading pawns unnecessarily.';
+    } else if (_materialDifference < 0) {
+      coachTip = 'You are trailing by ${-_materialDifference} in material. Keep your pieces coordinated and look for counter-attacking tactical pins and forks.';
+    } else {
+      coachTip = 'Position is balanced. Ensure your King safety is intact and look for outpost squares for your knights.';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF18181B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.psychology_outlined, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('AI Coach & Match Chat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('$botName • Tactical Insights', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF27272A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF3F3F46)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('🤖 ', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      coachTip,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22C55E),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Back to Game', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGameOptionsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF18181B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: ListView(
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3F3F46),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: Color(0xFF22C55E), size: 22),
+                    const SizedBox(width: 8),
+                    const Text('Game Options & Setup', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 20),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Quick Action: New Game Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF22C55E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Start Fresh Match', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _startNewGame();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 1. Board Theme Selector
+                const Text('BOARD THEME', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: BOARD_THEMES.values.map((th) {
+                    final isSel = th.id == _boardTheme;
+                    return ChoiceChip(
+                      label: Text(th.name),
+                      selected: isSel,
+                      selectedColor: const Color(0xFF22C55E),
+                      backgroundColor: const Color(0xFF27272A),
+                      labelStyle: TextStyle(
+                        color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      onSelected: (selected) {
+                        if (selected) {
+                          setSheetState(() => _boardTheme = th.id);
+                          setState(() => _boardTheme = th.id);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
+                // 2. Piece Theme Selector
+                const Text('PIECE DESIGN', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: PieceThemeId.values.map((pt) {
+                    final isSel = pt == _pieceTheme;
+                    return ChoiceChip(
+                      label: Text(pt.name.toUpperCase()),
+                      selected: isSel,
+                      selectedColor: const Color(0xFF22C55E),
+                      backgroundColor: const Color(0xFF27272A),
+                      labelStyle: TextStyle(
+                        color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      onSelected: (selected) {
+                        if (selected) {
+                          setSheetState(() => _pieceTheme = pt);
+                          setState(() => _pieceTheme = pt);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
+                // 3. Toggles: Flip Board, Coordinates, Pass & Play
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Flip Board', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: const Text('View board from Black or White side', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                  value: _flipped,
+                  activeThumbColor: const Color(0xFF22C55E),
+                  onChanged: (v) {
+                    setSheetState(() => _flipped = v);
+                    setState(() => _flipped = v);
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Outside Coordinates', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: const Text('Display 8..1 and a..h on outer board borders', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                  value: _showCoordinates,
+                  activeThumbColor: const Color(0xFF22C55E),
+                  onChanged: (v) {
+                    setSheetState(() => _showCoordinates = v);
+                    setState(() => _showCoordinates = v);
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('2-Player Pass & Play', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: const Text('Play with a friend locally on this phone', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                  value: _isPassAndPlay,
+                  activeThumbColor: const Color(0xFF22C55E),
+                  onChanged: (v) {
+                    setSheetState(() => _isPassAndPlay = v);
+                    setState(() => _isPassAndPlay = v);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // 4. Bot Difficulty Slider
+                const Text('AI BOT DIFFICULTY', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel).name,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF22C55E),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Level $_difficultyLevel',
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _difficultyLevel.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        activeColor: const Color(0xFF22C55E),
+                        inactiveColor: const Color(0xFF3F3F46),
+                        onChanged: (v) {
+                          setSheetState(() => _difficultyLevel = v.toInt());
+                          setState(() => _difficultyLevel = v.toInt());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 5. Time Control Selector
+                const Text('TIME CONTROLS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: TIME_CONTROLS.map((tc) {
+                    final isSel = tc.id == _timeControl.id;
+                    return ChoiceChip(
+                      label: Text(tc.label),
+                      selected: isSel,
+                      selectedColor: const Color(0xFF22C55E),
+                      backgroundColor: const Color(0xFF27272A),
+                      labelStyle: TextStyle(
+                        color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      onSelected: (selected) {
+                        if (selected) {
+                          setSheetState(() => _timeControl = tc);
+                          setState(() => _timeControl = tc);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _updateMaterial() {
     const startingCounts = {'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1};
     final currentCounts = {
@@ -286,7 +826,7 @@ class _PlayScreenState extends State<PlayScreen> {
     SoundService.playVictory();
     HapticsService.vibrate();
 
-    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[2]);
+    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
     final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
 
     final record = GameRecord(
@@ -301,16 +841,14 @@ class _PlayScreenState extends State<PlayScreen> {
       difficultyLevel: _difficultyLevel,
       personality: _personality,
       timeControl: _timeControl.label,
-      whitePlayer: _isPassAndPlay ? 'Player 1' : (_playerColor == PlayerColor.white ? 'You' : pers.name),
-      blackPlayer: _isPassAndPlay ? 'Player 2' : (_playerColor == PlayerColor.black ? 'You' : pers.name),
-      whiteElo: _playerColor == PlayerColor.white ? 1200 : diff.elo,
-      blackElo: _playerColor == PlayerColor.black ? 1200 : diff.elo,
+      whitePlayer: _isPassAndPlay ? 'Player 1' : (_playerColor == PlayerColor.white ? 'Ayush' : pers.name),
+      blackPlayer: _isPassAndPlay ? 'Player 2' : (_playerColor == PlayerColor.black ? 'Ayush' : pers.name),
+      whiteElo: _playerColor == PlayerColor.white ? 1742 : diff.elo,
+      blackElo: _playerColor == PlayerColor.black ? 1742 : diff.elo,
       movesCount: _moveSans.length,
     );
 
     StorageService.saveGame(record);
-
-    // Schedule notification alert
     NotificationService.scheduleDailyPracticeNotifications(enabled: widget.settings.dailyNotificationEnabled);
 
     showDialog(
@@ -322,51 +860,48 @@ class _PlayScreenState extends State<PlayScreen> {
         title: Column(
           children: [
             Text(
-              result == '1/2-1/2' ? '🤝 Draw' : (result == '1-0' && _playerColor == PlayerColor.white || result == '0-1' && _playerColor == PlayerColor.black ? '🏆 Victory!' : '💔 Defeat'),
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              result == '1/2-1/2'
+                  ? '🤝 Draw'
+                  : (result == '1-0' && _playerColor == PlayerColor.white || result == '0-1' && _playerColor == PlayerColor.black
+                      ? '🏆 Victory!'
+                      : '💔 Defeat'),
+              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            Text(details, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 14)),
+            Text(details, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF27272A),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF27272A),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Column(
                 children: [
-                  Column(
-                    children: [
-                      const Text('Result', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
-                      Text(result, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      const Text('Moves', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
-                      Text('${_moveSans.length}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+                  const Text('Result', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                  Text(result, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
               ),
-            ),
-          ],
+              Column(
+                children: [
+                  const Text('Moves', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                  Text('${_moveSans.length}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              setState(() {
-                _isPlaying = false;
-              });
+              _startNewGame();
             },
-            child: const Text('Play Lobby', style: TextStyle(color: Color(0xFFA1A1AA))),
+            child: const Text('New Game', style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold)),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -395,321 +930,258 @@ class _PlayScreenState extends State<PlayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
-        title: Row(
+      backgroundColor: const Color(0xFF090A0F),
+      body: SafeArea(
+        child: Column(
           children: [
-            const Text('♟️ Apex Chess', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const Spacer(),
-            if (_isPlaying) ...[
-              IconButton(
-                icon: const Icon(Icons.flip_camera_android, size: 20),
-                tooltip: 'Flip Board',
-                onPressed: () => setState(() => _flipped = !_flipped),
-              ),
-              IconButton(
-                icon: const Icon(Icons.flag_outlined, size: 20, color: Color(0xFFEF4444)),
-                tooltip: 'Resign',
-                onPressed: () => _handleGameOver(_playerColor == PlayerColor.white ? '0-1' : '1-0', 'resignation', 'Resigned'),
-              ),
-            ],
+            // 1. Top Header Bar matching reference
+            _buildTopHeader(),
+
+            // 2. Main Play Board & Cards Area
+            Expanded(
+              child: _buildPlayArea(),
+            ),
+
+            // 3. Bottom Action Bar with 5 Actions
+            _buildBottomActionBar(),
           ],
         ),
-      ),
-      body: SafeArea(
-        child: _isPlaying ? _buildActiveGameView() : _buildPlayLobby(),
       ),
     );
   }
 
-  Widget _buildPlayLobby() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTopHeader() {
+    final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
+    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: const Color(0xFF090A0F),
+      child: Row(
         children: [
-          // Banner
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Back chevron
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 30),
+            onPressed: () => _showGameOptionsSheet(),
+          ),
+          const SizedBox(width: 8),
+
+          // Brand Logo: ▲ APEX CHESS
+          Row(
+            children: const [
+              Text(
+                '▲',
+                style: TextStyle(
+                  color: Color(0xFF22C55E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF334155)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6).withAlpha(40),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text('♟️', style: TextStyle(fontSize: 28)),
+              SizedBox(width: 4),
+              Text(
+                'APEX ',
+                style: TextStyle(
+                  color: Color(0xFF22C55E),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  letterSpacing: 1.2,
                 ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Apex Chess Master', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Text('Pure Dart Minimax AI in Background Isolates', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 1. Difficulty Level Selector
-          const Text('BOT DIFFICULTY', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF18181B),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF27272A)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel).name,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Color(int.parse(DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel).badgeColor)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Level $_difficultyLevel',
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: _difficultyLevel.toDouble(),
-                  min: 1,
-                  max: 10,
-                  divisions: 9,
-                  activeColor: const Color(0xFF10B981),
-                  inactiveColor: const Color(0xFF3F3F46),
-                  onChanged: (v) => setState(() => _difficultyLevel = v.toInt()),
-                ),
-                Text(
-                  DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel).description,
-                  style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 2. Personality Selector
-          const Text('BOT PERSONALITY', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-          const SizedBox(height: 8),
-          Row(
-            children: AI_PERSONALITIES.map((p) {
-              final isSelected = p.id == _personality;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _personality = p.id),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF27272A) : const Color(0xFF18181B),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF27272A), width: 1.5),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(p.avatar, style: const TextStyle(fontSize: 22)),
-                        const SizedBox(height: 4),
-                        Text(p.name.split(' ').first, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFFA1A1AA), fontSize: 11, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-
-          // 3. Side & Mode Selection
-          const Text('PLAY AS & MODE', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: SegmentedButton<SideSelection>(
-                  segments: const [
-                    ButtonSegment(value: SideSelection.white, label: Text('White ♔')),
-                    ButtonSegment(value: SideSelection.random, label: Text('🎲')),
-                    ButtonSegment(value: SideSelection.black, label: Text('Black ♚')),
-                  ],
-                  selected: {_sideSelection},
-                  onSelectionChanged: (set) => setState(() => _sideSelection = set.first),
+              ),
+              Text(
+                'CHESS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  letterSpacing: 1.2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('2-Player Pass & Play', style: TextStyle(color: Colors.white, fontSize: 14)),
-            subtitle: const Text('Play with a friend locally on the same phone', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
-            value: _isPassAndPlay,
-            activeColor: const Color(0xFF10B981),
-            onChanged: (v) => setState(() => _isPassAndPlay = v),
-          ),
-          const SizedBox(height: 12),
 
-          // 4. Time Controls
-          const Text('TIME CONTROL', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: TIME_CONTROLS.map((tc) {
-              final isSel = tc.id == _timeControl.id;
-              return ChoiceChip(
-                label: Text(tc.label),
-                selected: isSel,
-                selectedColor: const Color(0xFF10B981),
-                labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA), fontWeight: isSel ? FontWeight.bold : FontWeight.normal),
-                backgroundColor: const Color(0xFF18181B),
-                onSelected: (selected) {
-                  if (selected) setState(() => _timeControl = tc);
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
+          const Spacer(),
 
-          // Start Button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Center Pill: 🤖 VS AI / Harmonic (1200)
+          GestureDetector(
+            onTap: _showGameOptionsSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF1F2937)),
               ),
-              icon: const Icon(Icons.play_arrow_rounded, size: 28),
-              label: const Text('START GAME', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-              onPressed: _startNewGame,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🤖 ', style: TextStyle(fontSize: 11)),
+                      Text(
+                        _isPassAndPlay ? 'PASS & PLAY' : 'VS AI',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    _isPassAndPlay ? '2 Players' : '${pers.name.split(' ').first} (${diff.elo})',
+                    style: const TextStyle(
+                      color: Color(0xFF22C55E),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+
+          const Spacer(),
+
+          // Right Icons: Chat & More Options
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF1F2937)),
+                color: const Color(0xFF111827),
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
+            ),
+            onPressed: _showCoachChatDialog,
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF1F2937)),
+                color: const Color(0xFF111827),
+              ),
+              child: const Icon(Icons.more_horiz_rounded, color: Colors.white, size: 18),
+            ),
+            onPressed: _showGameOptionsSheet,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActiveGameView() {
-    final isWhiteTurn = _game.turn == chess.Color.WHITE;
-    final opponentIsWhite = _playerColor == PlayerColor.black;
+  Widget _buildPlayArea() {
+    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
     final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
+
+    final isBlackAtTop = !_flipped;
+    final isWhiteTurn = _game.turn == chess.Color.WHITE;
+
+    // Names and ratings matching reference layout:
+    // Top player: Ayush (1742) with Black bishop avatar
+    // Bottom player: Harmonic (1200) with White pawn avatar
+    final topName = isBlackAtTop
+        ? (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : pers.name))
+        : (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : pers.name));
+    final topRating = isBlackAtTop
+        ? (_playerColor == PlayerColor.black ? '1742' : '${diff.elo}')
+        : (_playerColor == PlayerColor.white ? '1742' : '${diff.elo}');
+    final topPieceType = isBlackAtTop ? 'b' : 'p';
+    final topPieceColor = isBlackAtTop ? 'b' : 'w';
+    final topClockSec = isBlackAtTop ? _blackTimeSec : _whiteTimeSec;
+    final isTopTurn = isBlackAtTop ? !isWhiteTurn : isWhiteTurn;
+
+    final bottomName = isBlackAtTop
+        ? (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : '${pers.name.split(' ').first} (${diff.elo})'))
+        : (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : '${pers.name.split(' ').first} (${diff.elo})'));
+    final bottomRating = isBlackAtTop
+        ? (_playerColor == PlayerColor.white ? '1742' : '${diff.elo}')
+        : (_playerColor == PlayerColor.black ? '1742' : '${diff.elo}');
+    final bottomPieceType = isBlackAtTop ? 'p' : 'b';
+    final bottomPieceColor = isBlackAtTop ? 'w' : 'b';
+    final bottomClockSec = isBlackAtTop ? _whiteTimeSec : _blackTimeSec;
+    final isBottomTurn = isBlackAtTop ? isWhiteTurn : !isWhiteTurn;
 
     return Column(
       children: [
-        // 1. Top Player Card (Opponent)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF18181B),
-          child: Row(
-            children: [
-              Text(pers.avatar, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isPassAndPlay ? 'Player 2' : pers.name,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  Text(
-                    'Level $_difficultyLevel (${DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel).elo} Elo)',
-                    style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              // Captured pieces tally
-              Row(
-                children: (opponentIsWhite ? _whiteCaptured : _blackCaptured).take(5).map((pt) {
-                  return ChessPieceWidget(type: pt, color: opponentIsWhite ? 'b' : 'w', size: 16);
-                }).toList(),
-              ),
-              const SizedBox(width: 8),
-              // Clock
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: !isWhiteTurn && _timeControl.baseMinutes > 0 ? const Color(0xFFF59E0B).withAlpha(40) : const Color(0xFF27272A),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _timeControl.baseMinutes > 0 ? _formatClock(opponentIsWhite ? _whiteTimeSec : _blackTimeSec) : '∞',
-                  style: TextStyle(
-                    color: !isWhiteTurn && _timeControl.baseMinutes > 0 ? const Color(0xFFF59E0B) : Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        // Top Player Card
+        _buildPlayerCard(
+          name: topName,
+          rating: topRating,
+          pieceType: topPieceType,
+          pieceColor: topPieceColor,
+          clockSec: topClockSec,
+          isActiveTurn: isTopTurn,
         ),
 
-        // 2. Center Chessboard
+        // Center Chessboard with Outside Coordinates
         Expanded(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   ChessBoardWidget(
                     game: _game,
                     flipped: _flipped,
-                    boardTheme: widget.settings.boardTheme,
-                    pieceTheme: widget.settings.pieceTheme,
+                    boardTheme: _boardTheme,
+                    pieceTheme: _pieceTheme,
                     interactive: !_isAIThinking,
                     lastMoveFrom: _lastMoveFrom,
                     lastMoveTo: _lastMoveTo,
+                    arrows: _arrows,
+                    showCoordinates: _showCoordinates,
                     onMove: _onPlayerMove,
                   ),
+
+                  // Floating AI Calculation indicator
                   if (_isAIThinking)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(200),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF3B82F6)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                          SizedBox(width: 10),
-                          Text('AI Calculating...', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ],
+                    Positioned(
+                      top: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF111827).withAlpha(230),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF22C55E)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF22C55E).withAlpha(60),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF22C55E),
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'AI Thinking...',
+                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -718,97 +1190,246 @@ class _PlayScreenState extends State<PlayScreen> {
           ),
         ),
 
-        // 3. Bottom Player Card (User)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF18181B),
-          child: Row(
+        // Bottom Player Card
+        _buildPlayerCard(
+          name: bottomName,
+          rating: bottomRating,
+          pieceType: bottomPieceType,
+          pieceColor: bottomPieceColor,
+          clockSec: bottomClockSec,
+          isActiveTurn: isBottomTurn,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerCard({
+    required String name,
+    required String rating,
+    required String pieceType,
+    required String pieceColor,
+    required int clockSec,
+    required bool isActiveTurn,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // Circular Avatar with Glowing Emerald Rim & Online Dot
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              const CircleAvatar(
-                radius: 14,
-                backgroundColor: Color(0xFF10B981),
-                child: Text('👤', style: TextStyle(fontSize: 14)),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isPassAndPlay ? 'Player 1' : 'You',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  Text(
-                    'Elo ${StorageService.loadStats().rating}',
-                    style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: (!opponentIsWhite ? _whiteCaptured : _blackCaptured).take(5).map((pt) {
-                  return ChessPieceWidget(type: pt, color: !opponentIsWhite ? 'b' : 'w', size: 16);
-                }).toList(),
-              ),
-              if (_materialDifference != 0) ...[
-                const SizedBox(width: 4),
-                Text(
-                  '${_materialDifference > 0 ? "+" : ""}$_materialDifference',
-                  style: TextStyle(
-                    color: (_playerColor == PlayerColor.white ? _materialDifference > 0 : _materialDifference < 0) ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: isWhiteTurn && _timeControl.baseMinutes > 0 ? const Color(0xFFF59E0B).withAlpha(40) : const Color(0xFF27272A),
-                  borderRadius: BorderRadius.circular(6),
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1E293B),
+                  border: Border.all(color: const Color(0xFF22C55E), width: 1.8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF22C55E).withAlpha(70),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
-                child: Text(
-                  _timeControl.baseMinutes > 0 ? _formatClock(!opponentIsWhite ? _whiteTimeSec : _blackTimeSec) : '∞',
-                  style: TextStyle(
-                    color: isWhiteTurn && _timeControl.baseMinutes > 0 ? const Color(0xFFF59E0B) : Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    fontSize: 14,
+                child: Center(
+                  child: ChessPieceWidget(
+                    type: pieceType,
+                    color: pieceColor,
+                    theme: _pieceTheme,
+                    size: 26,
+                  ),
+                ),
+              ),
+              // Green Online Dot at Bottom Right
+              Positioned(
+                right: -1,
+                bottom: -1,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF090A0F), width: 2),
                   ),
                 ),
               ),
             ],
           ),
-        ),
 
-        // 4. Move history horizontal ribbon
-        Container(
-          height: 38,
-          color: const Color(0xFF09090B),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _moveSans.length,
-            itemBuilder: (context, index) {
-              final isWhiteMove = index % 2 == 0;
-              final moveNum = (index ~/ 2) + 1;
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    isWhiteMove ? '$moveNum. ${_moveSans[index]}' : _moveSans[index],
-                    style: TextStyle(
-                      color: index == _moveSans.length - 1 ? const Color(0xFFF59E0B) : const Color(0xFFA1A1AA),
-                      fontWeight: index == _moveSans.length - 1 ? FontWeight.bold : FontWeight.normal,
+          const SizedBox(width: 12),
+
+          // Name and Rating Crown
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  const Text('👑 ', style: TextStyle(fontSize: 12)),
+                  Text(
+                    rating,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
                       fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+            ],
           ),
+
+          const Spacer(),
+
+          // Large Digital Clock Card (09:24 / 09:31)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111827),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isActiveTurn ? const Color(0xFF22C55E) : const Color(0xFF1F2937),
+                width: isActiveTurn ? 1.5 : 1.0,
+              ),
+              boxShadow: isActiveTurn
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF22C55E).withAlpha(50),
+                        blurRadius: 8,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              _timeControl.baseMinutes > 0 ? _formatClock(clockSec) : '∞',
+              style: TextStyle(
+                color: isActiveTurn ? Colors.white : const Color(0xFFCBD5E1),
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomActionBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF090A0F),
+        border: Border(
+          top: BorderSide(color: Color(0xFF1E293B), width: 1.0),
         ),
-      ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildBottomActionItem(
+            icon: Icons.menu_rounded,
+            label: 'Options',
+            onTap: _showGameOptionsSheet,
+          ),
+          _buildBottomActionItem(
+            icon: Icons.arrow_back_rounded,
+            label: 'Back',
+            onTap: _handleUndoMove,
+          ),
+          _buildBottomActionItem(
+            icon: Icons.arrow_forward_rounded,
+            label: 'Forward',
+            onTap: _handleRedoMove,
+          ),
+          _buildBottomActionItem(
+            icon: Icons.lightbulb_outline_rounded,
+            label: 'Hint',
+            badgeText: '$_hintsRemaining',
+            badgeColor: const Color(0xFF22C55E),
+            onTap: _handleHint,
+          ),
+          _buildBottomActionItem(
+            icon: Icons.flag_rounded,
+            label: 'Resign',
+            color: const Color(0xFFEF4444),
+            onTap: _handleResignPrompt,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomActionItem({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+    Color color = const Color(0xFF94A3B8),
+    String? badgeText,
+    Color? badgeColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, color: color, size: 22),
+                if (badgeText != null)
+                  Positioned(
+                    top: -6,
+                    right: -10,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: badgeColor ?? const Color(0xFF22C55E),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Center(
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

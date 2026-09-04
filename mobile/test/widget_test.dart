@@ -8,8 +8,10 @@ void main() {
     await tester.pumpWidget(ApexChessApp(initialSettings: settings));
     await tester.pump();
 
-    // Verify app bar title exists
-    expect(find.text('♟️ Apex Chess'), findsOneWidget);
-    expect(find.text('START GAME'), findsOneWidget);
+    // Verify brand header and game actions exist
+    expect(find.text('APEX '), findsOneWidget);
+    expect(find.text('CHESS'), findsOneWidget);
+    expect(find.text('Options'), findsOneWidget);
+    expect(find.text('Hint'), findsOneWidget);
   });
 }

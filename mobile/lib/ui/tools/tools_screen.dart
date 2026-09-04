@@ -296,7 +296,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
           title: const Text('Haptic Vibration', style: TextStyle(color: Colors.white, fontSize: 14)),
           subtitle: const Text('Tactile response on moves, captures and checks', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
           value: widget.settings.hapticsEnabled,
-          activeColor: const Color(0xFF10B981),
+          activeThumbColor: const Color(0xFF10B981),
           onChanged: (v) {
             widget.settings.hapticsEnabled = v;
             HapticsService.enabled = v;
@@ -308,7 +308,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
           title: const Text('Daily Practice Notifications', style: TextStyle(color: Colors.white, fontSize: 14)),
           subtitle: const Text('Morning tactics & evening streak reminders', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
           value: widget.settings.dailyNotificationEnabled,
-          activeColor: const Color(0xFF10B981),
+          activeThumbColor: const Color(0xFF10B981),
           onChanged: (v) {
             widget.settings.dailyNotificationEnabled = v;
             NotificationService.scheduleDailyPracticeNotifications(enabled: v);

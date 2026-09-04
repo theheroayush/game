@@ -51,8 +51,9 @@ class ChessPieceWidget extends StatelessWidget {
         strokeColor = isWhite ? const Color(0xFF71717A) : const Color(0xFFA1A1AA);
         break;
       case PieceThemeId.staunton:
-        pieceColor = isWhite ? const Color(0xFFFFFFFF) : const Color(0xFF27272A);
-        strokeColor = isWhite ? const Color(0xFF1C1917) : const Color(0xFF09090B);
+        // Rich ivory porcelain for white, deep obsidian gloss for black matching reference
+        pieceColor = isWhite ? const Color(0xFFFBF9F0) : const Color(0xFF181B1E);
+        strokeColor = isWhite ? const Color(0xFF3E3A32) : const Color(0xFF0A0C0E);
         break;
     }
 
@@ -63,7 +64,25 @@ class ChessPieceWidget extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Stroke shadow for high contrast definition
+            // Realistic ambient contact shadow onto the square
+            Positioned(
+              bottom: size * 0.06,
+              child: Container(
+                width: size * 0.58,
+                height: size * 0.16,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.elliptical(size * 0.29, size * 0.08)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(isWhite ? 110 : 150),
+                      blurRadius: size * 0.12,
+                      spreadRadius: 1.0,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Outer crisp stroke for high contrast and piece definition
             Text(
               symbol,
               style: TextStyle(
@@ -72,11 +91,11 @@ class ChessPieceWidget extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 foreground: Paint()
                   ..style = PaintingStyle.stroke
-                  ..strokeWidth = 2.5
-                  ..color = strokeColor.withAlpha(200),
+                  ..strokeWidth = isWhite ? 2.6 : 3.0
+                  ..color = strokeColor.withAlpha(isWhite ? 220 : 255),
               ),
             ),
-            // Primary fill
+            // Primary 3D shaded piece body
             Text(
               symbol,
               style: TextStyle(
@@ -86,9 +105,9 @@ class ChessPieceWidget extends StatelessWidget {
                 color: pieceColor,
                 shadows: [
                   Shadow(
-                    color: Colors.black.withAlpha(120),
-                    blurRadius: 4,
-                    offset: const Offset(1, 2),
+                    color: Colors.black.withAlpha(isWhite ? 80 : 160),
+                    blurRadius: 4.0,
+                    offset: const Offset(1.0, 2.5),
                   ),
                 ],
               ),

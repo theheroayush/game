@@ -212,16 +212,18 @@ void main() {
       expect(find.byType(ChessBoardWidget), findsOneWidget);
     });
 
-    testWidgets('PlayScreen renders lobby controls', (WidgetTester tester) async {
+    testWidgets('PlayScreen renders active game board and controls', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: PlayScreen(settings: AppSettings()),
         ),
       );
 
-      expect(find.text('BOT DIFFICULTY'), findsOneWidget);
-      expect(find.text('BOT PERSONALITY'), findsOneWidget);
-      expect(find.text('START GAME'), findsOneWidget);
+      expect(find.text('APEX '), findsOneWidget);
+      expect(find.text('CHESS'), findsOneWidget);
+      expect(find.text('Options'), findsOneWidget);
+      expect(find.text('Hint'), findsOneWidget);
+      expect(find.text('Resign'), findsOneWidget);
     });
 
     testWidgets('PuzzlesScreen renders practice chips', (WidgetTester tester) async {
