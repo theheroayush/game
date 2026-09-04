@@ -212,10 +212,25 @@ void main() {
       expect(find.byType(ChessBoardWidget), findsOneWidget);
     });
 
-    testWidgets('PlayScreen renders active game board and controls', (WidgetTester tester) async {
+    testWidgets('PlayScreen renders Play Lobby by default', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: PlayScreen(settings: AppSettings()),
+        ),
+      );
+
+      expect(find.text('Play vs Computer'), findsOneWidget);
+      expect(find.text('TIME CONTROL'), findsOneWidget);
+      expect(find.text('PLAY AS'), findsOneWidget);
+    });
+
+    testWidgets('PlayScreen renders active game board and controls', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlayScreen(
+            settings: AppSettings(),
+            initialInLobby: false,
+          ),
         ),
       );
 

@@ -61,11 +61,11 @@ class PlayerCardWidget extends StatelessWidget {
     const pieceOrder = ['q', 'r', 'b', 'n', 'p'];
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isActive ? AppColors.card : AppColors.surface.withAlpha(220),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isLowTime
               ? AppColors.red
@@ -78,14 +78,14 @@ class PlayerCardWidget extends StatelessWidget {
           if (isActive)
             BoxShadow(
               color: AppColors.accentBlue.withAlpha(40),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+              blurRadius: 8,
+              offset: const Offset(0, 1),
             ),
           if (isLowTime)
             BoxShadow(
               color: AppColors.red.withAlpha(60),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
+              blurRadius: 10,
+              offset: const Offset(0, 1),
             ),
         ],
       ),
@@ -96,10 +96,10 @@ class PlayerCardWidget extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   gradient: isAI
                       ? const LinearGradient(
                           colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
@@ -284,14 +284,14 @@ class PlayerCardWidget extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: isLowTime
                       ? const Color(0x40EF4444)
                       : isActive
                           ? AppColors.dark
                           : AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isLowTime
                         ? AppColors.red
@@ -316,7 +316,7 @@ class PlayerCardWidget extends StatelessWidget {
                         : isActive
                             ? AppColors.textPrimary
                             : AppColors.textSecondary,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                     letterSpacing: 0.5,

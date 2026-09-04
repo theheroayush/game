@@ -27,8 +27,18 @@ void main() {
       await tester.pumpWidget(ApexChessApp(initialSettings: settings));
       await tester.pump();
 
-      // Check for exceptions on Play screen
-      expect(tester.takeException(), isNull, reason: 'Overflow on Play screen at $size');
+      // Check for exceptions on Play Lobby (Front Page)
+      expect(tester.takeException(), isNull, reason: 'Overflow on Play Lobby at $size');
+
+      // Start match and check for exceptions on active maximized board
+      final startBtn = find.textContaining('Start Match');
+      if (startBtn.evaluate().isNotEmpty) {
+        await tester.ensureVisible(startBtn);
+        await tester.pump();
+        await tester.tap(startBtn);
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'Overflow on active board at $size');
+      }
 
       // Test all tabs (0: Play, 1: Review, 2: Puzzles, 3: Endgames, 4: Openings, 5: Tools)
       final tabs = [

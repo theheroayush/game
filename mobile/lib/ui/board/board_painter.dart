@@ -41,15 +41,16 @@ class BoardPainter extends CustomPainter {
     this.captureSquares = const [],
     this.arrows = const [],
     this.showCoordinates = true,
-    this.leftGutter = 22.0,
-    this.bottomGutter = 22.0,
-    this.borderRadius = 10.0,
+    this.leftGutter = 0.0,
+    this.bottomGutter = 0.0,
+    this.borderRadius = 8.0,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final effectiveLeftGutter = showCoordinates ? leftGutter : 0.0;
     final effectiveBottomGutter = showCoordinates ? bottomGutter : 0.0;
+    final isInsetCoordinates = showCoordinates && leftGutter == 0.0 && bottomGutter == 0.0;
 
     final boardWidth = size.width - effectiveLeftGutter;
     final boardHeight = size.height - effectiveBottomGutter;
@@ -159,17 +160,70 @@ class BoardPainter extends CustomPainter {
       _drawArrow(canvas, effectiveLeftGutter, squareSize, arrow.from, arrow.to, arrow.color);
     }
 
+    // 5. Inset Coordinates (Chess.com / Lichess Style: ranks on left edge, files on bottom edge)
+    if (isInsetCoordinates) {
+      final coordFontSize = max(8.5, squareSize * 0.19);
+
+      // Ranks (8..1) rendered at the top-left of column 0
+      for (int r = 0; r < 8; r++) {
+        final rankNum = flipped ? r + 1 : 8 - r;
+        final isLightSquare = r % 2 == 0; // f = 0, so (r + 0) % 2 == 0
+        final coordColor = isLightSquare ? Color(theme.darkSquare) : Color(theme.lightSquare);
+
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '$rankNum',
+            style: TextStyle(
+              color: coordColor.withAlpha(210),
+              fontSize: coordFontSize,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'sans-serif',
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final x = effectiveLeftGutter + max(2.5, squareSize * 0.05);
+        final y = r * squareSize + max(1.5, squareSize * 0.03);
+        tp.paint(canvas, Offset(x, y));
+      }
+
+      // Files (a..h) rendered at the bottom-right of row 7
+      for (int f = 0; f < 8; f++) {
+        final fileChar = String.fromCharCode('a'.codeUnitAt(0) + (flipped ? 7 - f : f));
+        final isLightSquare = (7 + f) % 2 == 0;
+        final coordColor = isLightSquare ? Color(theme.darkSquare) : Color(theme.lightSquare);
+
+        final tp = TextPainter(
+          text: TextSpan(
+            text: fileChar,
+            style: TextStyle(
+              color: coordColor.withAlpha(210),
+              fontSize: coordFontSize,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'sans-serif',
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        final x = effectiveLeftGutter + (f + 1) * squareSize - tp.width - max(2.5, squareSize * 0.05);
+        final y = 8 * squareSize - tp.height - max(1.5, squareSize * 0.03);
+        tp.paint(canvas, Offset(x, y));
+      }
+    }
+
     canvas.restore(); // End of clipped board
 
-    // 5. Draw crisp board outline border
+    // 6. Draw crisp board outline border
     final borderPaint = Paint()
       ..color = const Color(0xFF27272A)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawRRect(boardRRect, borderPaint);
 
-    // 6. Draw Outside Coordinates (left gutter: ranks 8..1, bottom gutter: files a..h)
-    if (showCoordinates) {
+    // 7. Fallback: Draw Outside Coordinates if gutters are non-zero
+    if (showCoordinates && !isInsetCoordinates) {
       const coordStyle = TextStyle(
         color: Color(0xFF94A3B8),
         fontSize: 12,

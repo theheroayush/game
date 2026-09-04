@@ -66,7 +66,7 @@ void main() {
       final result = searchBestMoveIterative(
         game,
         3,
-        400,
+        2000,
         true,
         personality: AIPersonalityId.balanced,
       );

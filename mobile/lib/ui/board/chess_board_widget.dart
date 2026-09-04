@@ -202,27 +202,22 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final leftGutter = widget.showCoordinates ? 22.0 : 0.0;
-        final bottomGutter = widget.showCoordinates ? 22.0 : 0.0;
-
         final availW = constraints.maxWidth;
         final availH = constraints.maxHeight > 0 ? constraints.maxHeight : constraints.maxWidth;
 
-        final boardSize = min(availW - leftGutter, availH - bottomGutter);
+        final boardSize = min(availW, availH);
         final squareSize = boardSize / 8;
-        final totalWidth = leftGutter + boardSize;
-        final totalHeight = boardSize + bottomGutter;
         final checkSq = _findKingCheckSquare();
 
         return Center(
           child: SizedBox(
-            width: totalWidth,
-            height: totalHeight,
+            width: boardSize,
+            height: boardSize,
             child: Stack(
               children: [
-                // 1. Board Background, Outlines, Coordinates, and Arrows Canvas
+                // 1. Board Background, Outlines, Inset Coordinates, and Arrows Canvas
                 CustomPaint(
-                  size: Size(totalWidth, totalHeight),
+                  size: Size(boardSize, boardSize),
                   painter: BoardPainter(
                     themeId: widget.boardTheme,
                     flipped: widget.flipped,
@@ -234,9 +229,9 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                     captureSquares: _legalCaptures,
                     arrows: widget.arrows,
                     showCoordinates: widget.showCoordinates,
-                    leftGutter: leftGutter,
-                    bottomGutter: bottomGutter,
-                    borderRadius: 10.0,
+                    leftGutter: 0.0,
+                    bottomGutter: 0.0,
+                    borderRadius: 8.0,
                   ),
                 ),
 
@@ -244,7 +239,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                 for (int r = 0; r < 8; r++)
                   for (int f = 0; f < 8; f++)
                     Positioned(
-                      left: leftGutter + f * squareSize,
+                      left: f * squareSize,
                       top: r * squareSize,
                       width: squareSize,
                       height: squareSize,

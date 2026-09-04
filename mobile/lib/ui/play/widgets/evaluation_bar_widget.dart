@@ -73,28 +73,29 @@ class EvaluationBarWidget extends StatelessWidget {
               ),
             ],
           ),
-          // Numerical score pill overlay
-          Positioned(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-              decoration: BoxDecoration(
-                color: Colors.black.withAlpha(200),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  evalDisplay,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: 'monospace',
+          // Numerical score pill overlay (shown when bar width >= 10)
+          if (width >= 10.0)
+            Positioned(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(200),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    evalDisplay,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'monospace',
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

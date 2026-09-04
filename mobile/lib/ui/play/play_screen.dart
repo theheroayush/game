@@ -27,7 +27,7 @@ class PlayScreen extends StatefulWidget {
     super.key,
     required this.settings,
     this.onReviewGame,
-    this.initialInLobby = false,
+    this.initialInLobby = true,
   });
 
   @override
@@ -861,20 +861,29 @@ class _PlayScreenState extends State<PlayScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.dark,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            onPressed: () {
-              if (hasMatch) {
-                setState(() => _inLobby = false);
-              } else if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                setState(() => _inLobby = false);
-              }
-            },
-          ),
+          leading: hasMatch
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  tooltip: 'Return to Game',
+                  onPressed: () => setState(() => _inLobby = false),
+                )
+              : (Navigator.canPop(context)
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    )
+                  : const Center(
+                      child: Text(
+                        '▲',
+                        style: TextStyle(
+                          color: AppColors.green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )),
           title: const Text(
-            'Apex Play Lobby',
+            'Apex Play Hub',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ),
@@ -1131,27 +1140,25 @@ class _PlayScreenState extends State<PlayScreen> {
         Expanded(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final gutter = _showCoordinates ? 22.0 : 0.0;
-                  const evalBarWidth = 10.0;
-                  const spacing = 8.0;
+                  const evalBarWidth = 4.0;
+                  const spacing = 3.0;
                   final availBoardW = math.max(0.0, constraints.maxWidth - evalBarWidth - spacing);
                   final availH = constraints.maxHeight;
-                  final boardInnerSize = math.min(availBoardW - gutter, availH - gutter);
-                  final totalBoardHeight = math.max(100.0, boardInnerSize + gutter);
+                  final boardSize = math.min(availBoardW, availH);
 
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Live Centipawn Evaluation Bar
+                      // Live Centipawn Evaluation Bar (slim flush docking)
                       EvaluationBarWidget(
                         evalScore: _evalScore,
                         flipped: _flipped,
                         width: evalBarWidth,
-                        height: totalBoardHeight,
+                        height: boardSize,
                       ),
                       const SizedBox(width: spacing),
 
