@@ -42,6 +42,7 @@ class ChessBoardWidget extends StatefulWidget {
 class _ChessBoardWidgetState extends State<ChessBoardWidget> {
   String? _selectedSquare;
   List<String> _legalDestinations = [];
+  List<String> _legalCaptures = [];
 
   void _onSquareTapped(String square) {
     if (!widget.interactive) return;
@@ -51,7 +52,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
       if (piece != null && piece.color == widget.game.turn) {
         setState(() {
           _selectedSquare = square;
-          _legalDestinations = _getLegalDestinations(square);
+          _updateLegalMoves(square);
         });
         HapticsService.light();
       }
@@ -63,29 +64,41 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
         if (piece != null && piece.color == widget.game.turn) {
           setState(() {
             _selectedSquare = square;
-            _legalDestinations = _getLegalDestinations(square);
+            _updateLegalMoves(square);
           });
           HapticsService.light();
         } else {
           setState(() {
             _selectedSquare = null;
             _legalDestinations = [];
+            _legalCaptures = [];
           });
         }
       }
     }
   }
 
-  List<String> _getLegalDestinations(String from) {
+  void _updateLegalMoves(String from) {
     final rawMoves = widget.game.moves({'verbose': true});
     final destinations = <String>[];
+    final captures = <String>[];
     for (final m in rawMoves) {
       final map = m as Map<String, dynamic>;
       if (map['from'] == from) {
-        destinations.add(map['to'] as String);
+        final to = map['to'] as String;
+        destinations.add(to);
+        if (map['captured'] != null || widget.game.get(to) != null) {
+          captures.add(to);
+        }
       }
     }
-    return destinations;
+    _legalDestinations = destinations;
+    _legalCaptures = captures;
+  }
+
+  List<String> _getLegalDestinations(String from) {
+    _updateLegalMoves(from);
+    return _legalDestinations;
   }
 
   void _executeMove(String from, String to) {
@@ -218,6 +231,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                     lastMoveTo: widget.lastMoveTo,
                     checkSquare: checkSq,
                     legalSquares: _legalDestinations,
+                    captureSquares: _legalCaptures,
                     arrows: widget.arrows,
                     showCoordinates: widget.showCoordinates,
                     leftGutter: leftGutter,
@@ -290,7 +304,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                       onDragStarted: () {
                         setState(() {
                           _selectedSquare = sq;
-                          _legalDestinations = _getLegalDestinations(sq);
+                          _updateLegalMoves(sq);
                         });
                         HapticsService.light();
                       },

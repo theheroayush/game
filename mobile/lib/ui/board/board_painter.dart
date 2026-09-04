@@ -23,6 +23,7 @@ class BoardPainter extends CustomPainter {
   final String? lastMoveTo;
   final String? checkSquare;
   final List<String> legalSquares;
+  final List<String> captureSquares;
   final List<BoardArrow> arrows;
   final bool showCoordinates;
   final double leftGutter;
@@ -37,6 +38,7 @@ class BoardPainter extends CustomPainter {
     this.lastMoveTo,
     this.checkSquare,
     this.legalSquares = const [],
+    this.captureSquares = const [],
     this.arrows = const [],
     this.showCoordinates = true,
     this.leftGutter = 22.0,
@@ -88,65 +90,54 @@ class BoardPainter extends CustomPainter {
         final rankNum = flipped ? r + 1 : 8 - r;
         final sq = '$fileChar$rankNum';
 
-        // Last move highlight: Neon Emerald Green Glow & Outline
+        // Last move highlight: Elegant translucent warm gold (Chess.com parity)
         if (sq == lastMoveFrom || sq == lastMoveTo) {
-          final highlightRRect = RRect.fromRectAndRadius(
-            rect.deflate(1.5),
-            const Radius.circular(5.0),
-          );
-
-          // Translucent fill
-          final fillPaint = Paint()
-            ..color = const Color(0xFF22C55E).withAlpha(55)
+          final lastMovePaint = Paint()
+            ..color = isLight
+                ? const Color(0xFFF7EC74).withAlpha(140)
+                : const Color(0xFFDAC33C).withAlpha(160)
             ..style = PaintingStyle.fill;
-          canvas.drawRRect(highlightRRect, fillPaint);
-
-          // Soft neon glow border
-          final glowPaint = Paint()
-            ..color = const Color(0xFF22C55E).withAlpha(110)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 3.0
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5);
-          canvas.drawRRect(highlightRRect, glowPaint);
-
-          // Crisp neon green border
-          final strokePaint = Paint()
-            ..color = const Color(0xFF4ADE80)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.0;
-          canvas.drawRRect(highlightRRect, strokePaint);
+          canvas.drawRect(rect, lastMovePaint);
         }
 
-        // Selected square highlight
+        // Selected square highlight: Chess.com Olive/Sage Tint
         if (sq == selectedSquare) {
-          final selRRect = RRect.fromRectAndRadius(
-            rect.deflate(1.5),
-            const Radius.circular(5.0),
-          );
-          final selFill = Paint()
-            ..color = const Color(0xFF10B981).withAlpha(80)
+          final selPaint = Paint()
+            ..color = isLight
+                ? const Color(0xFFBACA44).withAlpha(190)
+                : const Color(0xFF8A9A2A).withAlpha(200)
             ..style = PaintingStyle.fill;
-          canvas.drawRRect(selRRect, selFill);
-
-          final selStroke = Paint()
-            ..color = const Color(0xFF34D399)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5;
-          canvas.drawRRect(selRRect, selStroke);
+          canvas.drawRect(rect, selPaint);
         }
 
-        // Check highlight (Red glow on king)
+        // Check highlight: Smooth crimson radial gradient on King
         if (sq == checkSquare) {
+          final center = rect.center;
+          final radius = squareSize * 0.7;
+          final checkGradient = RadialGradient(
+            colors: [
+              const Color(0xFFEF4444).withAlpha(210),
+              const Color(0xFFEF4444).withAlpha(130),
+              const Color(0xFFDC2626).withAlpha(0),
+            ],
+            stops: const [0.0, 0.6, 1.0],
+          );
           final checkPaint = Paint()
-            ..color = const Color(0xFFEF4444).withAlpha(160)
-            ..style = PaintingStyle.fill;
+            ..shader = checkGradient.createShader(Rect.fromCircle(center: center, radius: radius));
           canvas.drawRect(rect, checkPaint);
         }
       }
     }
 
-    // 3. Draw Legal Move indicators
-    final moveDotPaint = Paint()..color = Colors.black.withAlpha(75);
+    // 3. Draw Legal Move indicators (Chess.com: solid dot for quiet, circular ring for capture)
+    final moveDotPaint = Paint()
+      ..color = Colors.black.withAlpha(45)
+      ..style = PaintingStyle.fill;
+
+    final captureRingPaint = Paint()
+      ..color = Colors.black.withAlpha(45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = max(2.5, squareSize * 0.08);
 
     for (final sq in legalSquares) {
       final f = flipped ? 7 - (sq.codeUnitAt(0) - 'a'.codeUnitAt(0)) : sq.codeUnitAt(0) - 'a'.codeUnitAt(0);
@@ -156,7 +147,11 @@ class BoardPainter extends CustomPainter {
         r * squareSize + squareSize / 2,
       );
 
-      canvas.drawCircle(center, squareSize * 0.15, moveDotPaint);
+      if (captureSquares.contains(sq)) {
+        canvas.drawCircle(center, squareSize * 0.42, captureRingPaint);
+      } else {
+        canvas.drawCircle(center, squareSize * 0.14, moveDotPaint);
+      }
     }
 
     // 4. Draw Vector Arrows

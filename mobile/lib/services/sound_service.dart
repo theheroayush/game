@@ -4,6 +4,11 @@ class SoundService {
   static bool enabled = true;
   static double volume = 0.7;
 
+  static void playStart() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+  }
+
   static void playMove() {
     if (!enabled) return;
     SystemSound.play(SystemSoundType.click);

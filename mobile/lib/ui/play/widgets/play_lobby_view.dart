@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../models/chess_models.dart';
 import '../../../models/engine_config.dart';
@@ -6,20 +5,16 @@ import '../../../services/haptics_service.dart';
 import '../../../services/sound_service.dart';
 import '../../theme/app_theme.dart';
 
-/// PlayLobbyView brings 100% parity with Web UI PlayLobby.tsx:
-/// - Hero Header & feature badges
-/// - Quote showcase card
-/// - Quick Play banner
-/// - Opponent Elo slider (600 to 2500+)
-/// - Play Style selection cards
-/// - Time Control chips
-/// - Side selection (White, Random, Black)
-/// - Gradient Start CTA
+/// Clean, intuitive Chess.com-style Bot Selection & Match Setup Hub.
+/// Allows picking an AI opponent by skill tier, selecting time control and side,
+/// and starting a fresh match with zero friction or confusion.
 class PlayLobbyView extends StatefulWidget {
   final int initialDifficulty;
   final AIPersonalityId initialPersonality;
   final PlayerColor initialColor;
   final TimeControlConfig initialTimeControl;
+  final bool hasActiveMatch;
+  final VoidCallback? onResumeMatch;
   final Function({
     required int difficultyLevel,
     required AIPersonalityId personality,
@@ -33,6 +28,8 @@ class PlayLobbyView extends StatefulWidget {
     required this.initialPersonality,
     required this.initialColor,
     required this.initialTimeControl,
+    this.hasActiveMatch = false,
+    this.onResumeMatch,
     required this.onStartMatch,
   });
 
@@ -46,15 +43,110 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
   late PlayerColor _playerColor;
   bool _isRandomColor = false;
   late TimeControlConfig _timeControl;
+  String _selectedTier = 'all'; // 'all' | 'beginner' | 'intermediate' | 'master'
 
-  final List<Map<String, dynamic>> _playStyles = [
-    {'id': AIPersonalityId.balanced, 'title': 'Balanced', 'sub': 'Solid & reliable', 'icon': '⚖️'},
-    {'id': AIPersonalityId.aggressive, 'title': 'Aggressive', 'sub': 'Attack focused', 'icon': '⚔️'},
-    {'id': AIPersonalityId.positional, 'title': 'Positional', 'sub': 'Strategic', 'icon': '🏰'},
-    {'id': AIPersonalityId.tactical, 'title': 'Tactical', 'sub': 'Sharp & tricky', 'icon': '✨'},
+  // Curated Bot Roster matching Chess.com style
+  final List<Map<String, dynamic>> _bots = [
+    {
+      'level': 1,
+      'name': 'Jimmy',
+      'title': 'Novice Bot',
+      'elo': 600,
+      'avatar': '🤖',
+      'personality': AIPersonalityId.balanced,
+      'style': 'Casual',
+      'tier': 'beginner',
+      'desc': 'Overlooks hanging pieces, perfect for beginners learning basics.',
+    },
+    {
+      'level': 2,
+      'name': 'Martin',
+      'title': 'Calm Novice',
+      'elo': 800,
+      'avatar': '🥋',
+      'personality': AIPersonalityId.balanced,
+      'style': 'Beginner',
+      'tier': 'beginner',
+      'desc': 'Knows rules and simple checks, struggles with multi-step tactics.',
+    },
+    {
+      'level': 3,
+      'name': 'Elena',
+      'title': 'Sharp Casual',
+      'elo': 1000,
+      'avatar': '🎯',
+      'personality': AIPersonalityId.tactical,
+      'style': 'Tactical',
+      'tier': 'beginner',
+      'desc': 'Likes early attacks and pins, occasional tactical slips in endgames.',
+    },
+    {
+      'level': 4,
+      'name': 'Nelson',
+      'title': 'Club Novice',
+      'elo': 1200,
+      'avatar': '⚔️',
+      'personality': AIPersonalityId.aggressive,
+      'style': 'Aggressive',
+      'tier': 'intermediate',
+      'desc': 'Aggressive queen attacker. Punishes passive openings quickly.',
+    },
+    {
+      'level': 5,
+      'name': 'Antonio',
+      'title': 'Harmonic Intermediate',
+      'elo': 1400,
+      'avatar': '⚖️',
+      'personality': AIPersonalityId.balanced,
+      'style': 'Balanced',
+      'tier': 'intermediate',
+      'desc': 'Solid central control, patient development, balanced play.',
+    },
+    {
+      'level': 6,
+      'name': 'Sofia',
+      'title': 'The Architect',
+      'elo': 1600,
+      'avatar': '🏰',
+      'personality': AIPersonalityId.positional,
+      'style': 'Positional',
+      'tier': 'intermediate',
+      'desc': 'Locks pawn structures, targets outpost squares, strategic mastery.',
+    },
+    {
+      'level': 7,
+      'name': 'Laura',
+      'title': 'Tactical Magician',
+      'elo': 1800,
+      'avatar': '✨',
+      'personality': AIPersonalityId.tactical,
+      'style': 'Tricky',
+      'tier': 'master',
+      'desc': 'Constantly sets tactical traps, forks, and deflection tactics.',
+    },
+    {
+      'level': 8,
+      'name': 'Viktor',
+      'title': 'Club Master',
+      'elo': 2000,
+      'avatar': '🦁',
+      'personality': AIPersonalityId.aggressive,
+      'style': 'Grandmaster',
+      'tier': 'master',
+      'desc': 'Fierce calculation and strong endgame conversion.',
+    },
+    {
+      'level': 10,
+      'name': 'Magnus AI',
+      'title': 'Apex Engine',
+      'elo': 2500,
+      'avatar': '👑',
+      'personality': AIPersonalityId.balanced,
+      'style': 'World Champion',
+      'tier': 'master',
+      'desc': 'Deep iterative minimax search with quiescence horizon calculation.',
+    },
   ];
-
-  final List<String> _eloTicks = ['600', '800', '1000', '1200', '1500', '1800', '2000', '2500+'];
 
   @override
   void initState() {
@@ -66,13 +158,12 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
   }
 
   void _handleStart() {
-    SoundService.playMove();
-    HapticsService.medium();
+    final finalColor = _isRandomColor
+        ? (DateTime.now().millisecond % 2 == 0 ? PlayerColor.white : PlayerColor.black)
+        : _playerColor;
 
-    PlayerColor finalColor = _playerColor;
-    if (_isRandomColor) {
-      finalColor = (DateTime.now().millisecond % 2 == 0) ? PlayerColor.white : PlayerColor.black;
-    }
+    SoundService.playStart();
+    HapticsService.medium();
 
     widget.onStartMatch(
       difficultyLevel: _difficultyLevel,
@@ -84,14 +175,14 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
 
   @override
   Widget build(BuildContext context) {
-    final currentDiff = DIFFICULTY_LEVELS.firstWhere(
-      (d) => d.level == _difficultyLevel,
-      orElse: () => DIFFICULTY_LEVELS[2],
+    final currentBot = _bots.firstWhere(
+      (b) => b['level'] == _difficultyLevel,
+      orElse: () => _bots[3], // Nelson (1200) default
     );
-    final currentPers = AI_PERSONALITIES.firstWhere(
-      (p) => p.id == _personality,
-      orElse: () => AI_PERSONALITIES[0],
-    );
+
+    final filteredBots = _selectedTier == 'all'
+        ? _bots
+        : _bots.where((b) => b['tier'] == _selectedTier).toList();
 
     return SingleChildScrollView(
       physics: const ClampingScrollPhysics(),
@@ -99,133 +190,343 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Header Title & Subtitle matching web
+          // 1. Header Title: "Play vs Computer"
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Play Chess vs ',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentBlueMuted,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.accentBlue.withAlpha(120)),
-                  ),
-                  child: const Text(
-                    'AI',
-                    style: TextStyle(
-                      color: AppColors.accentBlue,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Choose your opponent and start playing.',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Subtitle pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0x301E3A8A),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0x603B82F6)),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.auto_awesome, color: AppColors.accentBlue, size: 13),
-                SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    'Human-calibrated Elo levels · Unique AI personalities',
-                    style: TextStyle(
-                      color: Color(0xFF93C5FD),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 2. Luxury Quote Card
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: AppDecorations.card(
-              backgroundColor: AppColors.card,
-              borderColor: AppColors.border,
-            ),
-            child: Row(
-              children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.accentBlue.withAlpha(30),
+                    color: AppColors.accentBlue.withAlpha(35),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.format_quote_rounded, color: AppColors.accentBlue, size: 18),
+                  child: const Icon(Icons.smart_toy_rounded, color: AppColors.accentBlue, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    '“Chess is the gymnasium of the mind.” — Blaise Pascal',
-                    style: TextStyle(
-                      color: Color(0xFFE2E8F0),
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      height: 1.3,
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Play vs Computer',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
                     ),
-                  ),
+                    Text(
+                      'Select your opponent bot and time control',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
 
-          // 3. 4 Feature Badges Grid (2x2)
-          Row(
+          // 2. If active match in progress: Resume Banner
+          if (widget.hasActiveMatch && widget.onResumeMatch != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0x301E3A8A),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.accentBlue),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.play_circle_fill_rounded, color: AppColors.accentBlue, size: 28),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Match in Progress',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        Text(
+                          'You have an active game running on the board',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: widget.onResumeMatch,
+                    child: const Text('Resume', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // 3. Bot Tier Filter Tabs
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTierChip('all', 'All Bots (${_bots.length})'),
+                const SizedBox(width: 6),
+                _buildTierChip('beginner', 'Beginner (600–1000)'),
+                const SizedBox(width: 6),
+                _buildTierChip('intermediate', 'Intermediate (1200–1600)'),
+                const SizedBox(width: 6),
+                _buildTierChip('master', 'Master (1800–2500)'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 4. Bot Selection Cards (2-column responsive grid)
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 1.45,
+            children: filteredBots.map((bot) {
+              final isSel = _difficultyLevel == bot['level'];
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _difficultyLevel = bot['level'] as int;
+                    _personality = bot['personality'] as AIPersonalityId;
+                  });
+                  HapticsService.light();
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0x301E3A8A) : AppColors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSel ? AppColors.accentBlue : AppColors.border,
+                      width: isSel ? 2.0 : 1.0,
+                    ),
+                    boxShadow: [
+                      if (isSel)
+                        BoxShadow(
+                          color: AppColors.accentBlue.withAlpha(50),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          // Bot Avatar
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: isSel ? AppColors.accentBlue.withAlpha(40) : AppColors.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: isSel ? AppColors.accentBlue : AppColors.border),
+                            ),
+                            child: Center(
+                              child: Text(bot['avatar'] as String, style: const TextStyle(fontSize: 14)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Name & Elo
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    bot['name'] as String,
+                                    style: TextStyle(
+                                      color: isSel ? Colors.white : AppColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${bot['elo']} Elo',
+                                  style: TextStyle(
+                                    color: isSel ? AppColors.accentBlue : AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Style badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                bot['style'] as String,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 8.5, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          if (isSel) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.check_circle_rounded, color: AppColors.accentBlue, size: 14),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+
+          // 5. Selected Opponent Bio Strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.accentBlue, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${currentBot['name']}: ${currentBot['desc']}',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // 6. Time Control Section
+          const Row(
             children: [
-              Expanded(
-                child: _buildMiniFeatureBadge(
-                  icon: Icons.bolt_rounded,
-                  title: 'Adaptive AI',
-                  subtitle: 'Adjusts to level',
-                  accentColor: AppColors.amber,
+              Icon(Icons.schedule_rounded, color: AppColors.green, size: 15),
+              SizedBox(width: 6),
+              Text(
+                'TIME CONTROL',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMiniFeatureBadge(
-                  icon: Icons.trending_up_rounded,
-                  title: 'Track Progress',
-                  subtitle: 'Deep insights',
-                  accentColor: AppColors.purple,
+            ],
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = (constraints.maxWidth - 12) / 3;
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: TIME_CONTROLS.map((tc) {
+                  final isSel = _timeControl.id == tc.id;
+                  final parts = tc.label.split(' ');
+                  final timePart = parts.first;
+                  final typePart = parts.length > 1 ? parts[1] : '';
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() => _timeControl = tc);
+                      HapticsService.light();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: itemWidth.clamp(60.0, double.infinity),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: isSel ? const Color(0x301E3A8A) : AppColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSel ? AppColors.accentBlue : AppColors.border,
+                          width: isSel ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            timePart,
+                            style: TextStyle(
+                              color: isSel ? AppColors.accentBlue : Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          Text(
+                            typePart,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+
+          // 7. Side Selection (Play as White / Random / Black)
+          const Row(
+            children: [
+              Icon(Icons.sports_kabaddi_rounded, color: Color(0xFFF472B6), size: 15),
+              SizedBox(width: 6),
+              Text(
+                'PLAY AS',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
                 ),
               ),
             ],
@@ -233,562 +534,102 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
           const SizedBox(height: 8),
           Row(
             children: [
+              // White
               Expanded(
-                child: _buildMiniFeatureBadge(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Fair Play',
-                  subtitle: 'No unfair tricks',
-                  accentColor: AppColors.green,
+                child: _buildSideSelectionButton(
+                  label: 'White',
+                  icon: '♔',
+                  isSelected: !_isRandomColor && _playerColor == PlayerColor.white,
+                  onTap: () {
+                    setState(() {
+                      _isRandomColor = false;
+                      _playerColor = PlayerColor.white;
+                    });
+                    HapticsService.light();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
+
+              // Random
               Expanded(
-                child: _buildMiniFeatureBadge(
-                  icon: Icons.emoji_events_outlined,
-                  title: 'Climb Rankings',
-                  subtitle: 'Elo progression',
-                  accentColor: AppColors.gold,
+                child: _buildSideSelectionButton(
+                  label: 'Random',
+                  icon: '☯',
+                  isSelected: _isRandomColor,
+                  onTap: () {
+                    setState(() => _isRandomColor = true);
+                    HapticsService.light();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Black
+              Expanded(
+                child: _buildSideSelectionButton(
+                  label: 'Black',
+                  icon: '♚',
+                  isSelected: !_isRandomColor && _playerColor == PlayerColor.black,
+                  onTap: () {
+                    setState(() {
+                      _isRandomColor = false;
+                      _playerColor = PlayerColor.black;
+                    });
+                    HapticsService.light();
+                  },
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 22),
 
-          // 4. Quick Play Banner Card
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: AppDecorations.card(
-              backgroundColor: AppColors.card,
-              borderColor: AppColors.border,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentBlue.withAlpha(40),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accentBlue.withAlpha(80)),
-                  ),
-                  child: const Icon(Icons.flash_on_rounded, color: AppColors.accentBlue, size: 20),
+          // 8. Single High-Impact Start Match CTA Button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withAlpha(100),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _handleStart,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Quick Play',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
+                      const Icon(Icons.sports_esports_rounded, color: Colors.white, size: 22),
+                      const SizedBox(width: 8),
                       Text(
-                        '${currentDiff.elo} Elo · ${_timeControl.label} · ${_isRandomColor ? "Random" : (_playerColor == PlayerColor.white ? "White" : "Black")}',
+                        'Start Match vs ${currentBot['name']} (${currentBot['elo']})',
                         style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    elevation: 4,
-                  ),
-                  onPressed: _handleStart,
-                  child: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Play Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        Icon(Icons.chevron_right_rounded, size: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 5. Interactive Setup Deck
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: AppDecorations.card(
-              backgroundColor: AppColors.surface,
-              borderColor: AppColors.border,
-              borderRadius: 20,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // SECTION 1: OPPONENT
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.person_outline_rounded, color: AppColors.amber, size: 14),
-                        SizedBox(width: 5),
-                        Text(
-                          'OPPONENT',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      currentDiff.name.split(' ').first,
-                      style: const TextStyle(
-                        color: AppColors.accentBlue,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '${currentDiff.elo} Elo',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '(${currentDiff.description})',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-
-                // Elo Slider
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: AppColors.accentBlue,
-                    inactiveTrackColor: AppColors.dark,
-                    thumbColor: Colors.white,
-                    overlayColor: AppColors.accentBlue.withAlpha(50),
-                    trackHeight: 6,
-                  ),
-                  child: Slider(
-                    value: _difficultyLevel.toDouble(),
-                    min: 1,
-                    max: 10,
-                    divisions: 9,
-                    onChanged: (val) {
-                      setState(() => _difficultyLevel = val.round());
-                      HapticsService.light();
-                    },
-                  ),
-                ),
-                // Elo Ticks
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final targetW = math.max(300.0, constraints.maxWidth);
-                      return FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: SizedBox(
-                          width: targetW,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: _eloTicks.map((t) {
-                              return Text(
-                                t,
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 9,
-                                  fontFamily: 'monospace',
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
-
-                // SECTION 2: PLAY STYLE
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star_outline_rounded, color: AppColors.accentBlue, size: 14),
-                        SizedBox(width: 5),
-                        Text(
-                          'PLAY STYLE',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Flexible(
-                      child: Text(
-                        currentPers.name,
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 2.0,
-                  children: _playStyles.map((st) {
-                    final isSel = _personality == st['id'];
-                    return InkWell(
-                      onTap: () {
-                        setState(() => _personality = st['id']);
-                        HapticsService.light();
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSel ? const Color(0x301E3A8A) : AppColors.card,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSel ? AppColors.accentBlue : AppColors.border,
-                            width: isSel ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(st['icon'] as String, style: const TextStyle(fontSize: 12)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    st['title'] as String,
-                                    style: TextStyle(
-                                      color: isSel ? AppColors.accentBlue : Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              st['sub'] as String,
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 9.5),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
-
-                // SECTION 3: TIME CONTROL
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.schedule_rounded, color: AppColors.green, size: 14),
-                        SizedBox(width: 5),
-                        Text(
-                          'TIME CONTROL',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    InkWell(
-                      onTap: () {
-                        setState(() => _timeControl = TIME_CONTROLS.last);
-                        HapticsService.light();
-                      },
-                      child: Text(
-                        _timeControl.category == 'none' ? '✓ No Clock' : 'No Clock',
-                        style: TextStyle(
-                          color: _timeControl.category == 'none' ? AppColors.accentBlue : AppColors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final itemWidth = (constraints.maxWidth - 12) / 3;
-                    return Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: TIME_CONTROLS.sublist(0, 5).map((tc) {
-                        final isSel = _timeControl.id == tc.id;
-                        final parts = tc.label.split(' ');
-                        final timePart = parts.first;
-                        final typePart = parts.length > 1 ? parts[1] : '';
-
-                        return InkWell(
-                          onTap: () {
-                            setState(() => _timeControl = tc);
-                            HapticsService.light();
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            width: itemWidth.clamp(60.0, double.infinity),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0x301E3A8A) : AppColors.card,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSel ? AppColors.accentBlue : AppColors.border,
-                                width: isSel ? 1.5 : 1.0,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  timePart,
-                                  style: TextStyle(
-                                    color: isSel ? AppColors.accentBlue : Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                                Text(
-                                  typePart,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
-
-                // SECTION 4: YOUR COLOR
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.sports_kabaddi_rounded, color: Color(0xFFF472B6), size: 14),
-                        SizedBox(width: 5),
-                        Text(
-                          'YOUR COLOR',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      _isRandomColor
-                          ? 'Random'
-                          : (_playerColor == PlayerColor.white ? 'White' : 'Black'),
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    // White
-                    Expanded(
-                      child: _buildColorSelectionButton(
-                        label: 'White',
-                        isSelected: !_isRandomColor && _playerColor == PlayerColor.white,
-                        avatar: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF94A3B8), width: 1.5),
-                          ),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _isRandomColor = false;
-                            _playerColor = PlayerColor.white;
-                          });
-                          HapticsService.light();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Random
-                    Expanded(
-                      child: _buildColorSelectionButton(
-                        label: 'Random',
-                        isSelected: _isRandomColor,
-                        avatar: const Icon(Icons.shuffle_rounded, color: AppColors.accentBlue, size: 16),
-                        onTap: () {
-                          setState(() => _isRandomColor = true);
-                          HapticsService.light();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Black
-                    Expanded(
-                      child: _buildColorSelectionButton(
-                        label: 'Black',
-                        isSelected: !_isRandomColor && _playerColor == PlayerColor.black,
-                        avatar: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF18181B),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF52525B), width: 1.5),
-                          ),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _isRandomColor = false;
-                            _playerColor = PlayerColor.black;
-                          });
-                          HapticsService.light();
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION 5: Full Width Gradient "Play Now" Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF2563EB).withAlpha(100),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      onPressed: _handleStart,
-                      child: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.sports_esports_rounded, color: Colors.white, size: 20),
-                            SizedBox(width: 10),
-                            Text(
-                              'Play Now — Start your game',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 30),
@@ -797,66 +638,39 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
     );
   }
 
-  Widget _buildMiniFeatureBadge({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color accentColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 1.0),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: accentColor.withAlpha(30),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: accentColor, size: 16),
+  Widget _buildTierChip(String tierId, String label) {
+    final isSel = _selectedTier == tierId;
+    return InkWell(
+      onTap: () {
+        setState(() => _selectedTier = tierId);
+        HapticsService.light();
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSel ? AppColors.accentBlue : AppColors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSel ? AppColors.accentBlue : AppColors.border,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 9,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSel ? Colors.white : AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildColorSelectionButton({
+  Widget _buildSideSelectionButton({
     required String label,
+    required String icon,
     required bool isSelected,
-    required Widget avatar,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -869,7 +683,7 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.accentBlue : AppColors.border,
-            width: isSelected ? 1.5 : 1.0,
+            width: isSelected ? 2.0 : 1.0,
           ),
         ),
         child: FittedBox(
@@ -877,7 +691,7 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              avatar,
+              Text(icon, style: const TextStyle(fontSize: 16)),
               const SizedBox(width: 6),
               Text(
                 label,

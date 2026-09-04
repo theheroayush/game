@@ -38,6 +38,7 @@ dependencies:
   http: ^1.6.0
   flutter_local_notifications: ^22.3.0
   chess: ^0.8.1
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:

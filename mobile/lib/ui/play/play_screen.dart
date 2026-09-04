@@ -21,11 +21,13 @@ import 'widgets/move_history_sheet.dart';
 class PlayScreen extends StatefulWidget {
   final AppSettings settings;
   final Function(GameRecord record)? onReviewGame;
+  final bool initialInLobby;
 
   const PlayScreen({
     super.key,
     required this.settings,
     this.onReviewGame,
+    this.initialInLobby = false,
   });
 
   @override
@@ -34,14 +36,14 @@ class PlayScreen extends StatefulWidget {
 
 class _PlayScreenState extends State<PlayScreen> {
   // Screen mode: in lobby or active match
-  bool _inLobby = false;
+  late bool _inLobby;
 
   // Match state
-  bool _isPlaying = true;
+  bool _isPlaying = false;
   bool _isPassAndPlay = false;
   int _difficultyLevel = 4; // Club Novice 1200 Elo
   AIPersonalityId _personality = AIPersonalityId.balanced; // Harmonic Engine
-  PlayerColor _playerColor = PlayerColor.black;
+  PlayerColor _playerColor = PlayerColor.white;
   TimeControlConfig _timeControl = TIME_CONTROLS[3]; // 10+5 Rapid
   bool _flipped = false;
   bool _showCoordinates = true;
@@ -49,18 +51,18 @@ class _PlayScreenState extends State<PlayScreen> {
   late PieceThemeId _pieceTheme;
 
   chess.Chess _game = chess.Chess();
-  String? _lastMoveFrom = 'g8';
-  String? _lastMoveTo = 'f6';
+  String? _lastMoveFrom;
+  String? _lastMoveTo;
   bool _isAIThinking = false;
-  int _evalScore = 20; // Centipawn engine balance
-  final List<String> _moveSans = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6'];
+  int _evalScore = 0;
+  final List<String> _moveSans = [];
   final List<BoardArrow> _arrows = [];
   int _hintsRemaining = 3;
   final List<Map<String, dynamic>> _redoStack = [];
 
   // Clocks
-  int _whiteTimeSec = 571;
-  int _blackTimeSec = 564;
+  int _whiteTimeSec = 600;
+  int _blackTimeSec = 600;
   Timer? _clockTimer;
 
   // Material & captured pieces
@@ -71,12 +73,12 @@ class _PlayScreenState extends State<PlayScreen> {
   @override
   void initState() {
     super.initState();
+    _inLobby = widget.initialInLobby;
     _boardTheme = widget.settings.boardTheme;
     _pieceTheme = widget.settings.pieceTheme;
     _showCoordinates = widget.settings.showCoordinates;
 
     _setupInitialGame();
-    _startClock();
   }
 
   @override
@@ -87,13 +89,16 @@ class _PlayScreenState extends State<PlayScreen> {
 
   void _setupInitialGame() {
     _game = chess.Chess();
-    for (final san in ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6']) {
-      _game.move(san);
-    }
-    _lastMoveFrom = 'g8';
-    _lastMoveTo = 'f6';
-    _updateMaterial();
-    _evalScore = evaluatePosition(_game, _personality);
+    _lastMoveFrom = null;
+    _lastMoveTo = null;
+    _moveSans.clear();
+    _arrows.clear();
+    _redoStack.clear();
+    _hintsRemaining = 3;
+    _whiteCaptured.clear();
+    _blackCaptured.clear();
+    _materialDifference = 0;
+    _evalScore = 0;
   }
 
   void _startNewGame({
@@ -104,16 +109,7 @@ class _PlayScreenState extends State<PlayScreen> {
     bool? isPassAndPlay,
   }) {
     _clockTimer?.cancel();
-    _game = chess.Chess();
-    _lastMoveFrom = null;
-    _lastMoveTo = null;
-    _moveSans.clear();
-    _arrows.clear();
-    _redoStack.clear();
-    _hintsRemaining = 3;
-    _whiteCaptured.clear();
-    _blackCaptured.clear();
-    _materialDifference = 0;
+    _setupInitialGame();
 
     if (difficultyLevel != null) _difficultyLevel = difficultyLevel;
     if (personality != null) _personality = personality;
@@ -130,7 +126,7 @@ class _PlayScreenState extends State<PlayScreen> {
     setState(() {
       _isPlaying = true;
       _inLobby = false;
-      _evalScore = evaluatePosition(_game, _personality);
+      _evalScore = 0;
     });
 
     if (_timeControl.baseMinutes > 0) {
@@ -138,7 +134,11 @@ class _PlayScreenState extends State<PlayScreen> {
     }
 
     if (!_isPassAndPlay && _playerColor == PlayerColor.black) {
-      _triggerAIMove();
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (mounted && _isPlaying) {
+          _triggerAIMove();
+        }
+      });
     }
   }
 
@@ -534,7 +534,25 @@ class _PlayScreenState extends State<PlayScreen> {
               Navigator.of(ctx).pop();
               setState(() => _inLobby = true);
             },
-            child: const Text('Play Lobby', style: TextStyle(color: AppColors.accentBlue, fontWeight: FontWeight.bold)),
+            child: const Text('New Opponent', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            label: const Text('Rematch'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _startNewGame(
+                difficultyLevel: _difficultyLevel,
+                personality: _personality,
+                playerColor: _playerColor == PlayerColor.white ? PlayerColor.black : PlayerColor.white,
+                timeControl: _timeControl,
+              );
+            },
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -779,6 +797,7 @@ class _PlayScreenState extends State<PlayScreen> {
   @override
   Widget build(BuildContext context) {
     if (_inLobby) {
+      final hasMatch = _moveSans.isNotEmpty && _isPlaying;
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
@@ -786,7 +805,15 @@ class _PlayScreenState extends State<PlayScreen> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            onPressed: () => setState(() => _inLobby = false),
+            onPressed: () {
+              if (hasMatch) {
+                setState(() => _inLobby = false);
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                setState(() => _inLobby = false);
+              }
+            },
           ),
           title: const Text(
             'Apex Play Lobby',
@@ -799,6 +826,8 @@ class _PlayScreenState extends State<PlayScreen> {
             initialPersonality: _personality,
             initialColor: _playerColor,
             initialTimeControl: _timeControl,
+            hasActiveMatch: hasMatch,
+            onResumeMatch: () => setState(() => _inLobby = false),
             onStartMatch: ({
               required int difficultyLevel,
               required AIPersonalityId personality,
