@@ -4,6 +4,7 @@ import '../../models/chess_models.dart';
 import '../../data/openings_data.dart';
 import '../board/chess_board_widget.dart';
 import '../board/board_painter.dart';
+import '../theme/app_theme.dart';
 
 class OpeningsScreen extends StatefulWidget {
   final AppSettings settings;
@@ -85,9 +86,9 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
     final isFlipped = opening.side == 'black';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.dark,
         title: const Text('📖 Opening Explorer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SafeArea(
@@ -96,7 +97,7 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
             // Opening selector carousel
             Container(
               height: 48,
-              color: const Color(0xFF18181B),
+              color: AppColors.surface,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -109,10 +110,10 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
                     child: ChoiceChip(
                       label: Text('${op.eco}: ${op.name.split(':').first}'),
                       selected: isSel,
-                      selectedColor: const Color(0xFF3B82F6),
-                      backgroundColor: const Color(0xFF27272A),
+                      selectedColor: AppColors.accentBlue,
+                      backgroundColor: AppColors.card,
                       labelStyle: TextStyle(
-                        color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+                        color: isSel ? Colors.white : AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -145,7 +146,10 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
             // Stepping navigation bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: const Color(0xFF18181B),
+              decoration: const BoxDecoration(
+                color: AppColors.dark,
+                border: Border.symmetric(horizontal: BorderSide(color: AppColors.border, width: 1.0)),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -202,9 +206,9 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF27272A)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +226,7 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF10B981).withAlpha(40), borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(color: AppColors.greenMuted, borderRadius: BorderRadius.circular(4)),
                         child: Text(opening.difficulty, style: const TextStyle(color: Color(0xFF34D399), fontSize: 11)),
                       ),
                     ],
@@ -235,8 +239,8 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
                     runSpacing: 4,
                     children: opening.keyIdeas.map((idea) {
                       return Chip(
-                        label: Text(idea, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                        backgroundColor: const Color(0xFF27272A),
+                        label: Text(idea, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                        backgroundColor: AppColors.card,
                         padding: EdgeInsets.zero,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       );

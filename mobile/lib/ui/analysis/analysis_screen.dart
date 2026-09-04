@@ -8,6 +8,7 @@ import '../../services/haptics_service.dart';
 import '../../services/sound_service.dart';
 import '../board/chess_board_widget.dart';
 import '../board/board_painter.dart';
+import '../theme/app_theme.dart';
 import 'eval_spline_painter.dart';
 
 class AnalysisScreen extends StatefulWidget {
@@ -218,12 +219,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF09090B),
+        backgroundColor: AppColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Color(0xFF10B981)),
+              CircularProgressIndicator(color: AppColors.accentBlue),
               SizedBox(height: 16),
               Text('Analyzing Game with Minimax Engine...', style: TextStyle(color: Colors.white, fontSize: 14)),
             ],
@@ -237,9 +238,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final evals = [0.0, ...analysis.moves.map((m) => m.evalAfter)];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.dark,
         title: Text(
           _activeGame != null ? '${_activeGame!.whitePlayer} vs ${_activeGame!.blackPlayer}' : '👨‍🏫 Coach Review',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -257,12 +258,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             // 1. Accuracy & Performance Header Card
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: const Color(0xFF18181B),
+              color: AppColors.surface,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildPlayerAccuracyCard('White', analysis.accuracyWhite, analysis.performanceWhite, const Color(0xFFE2E8F0)),
-                  Container(width: 1, height: 40, color: const Color(0xFF27272A)),
+                  Container(width: 1, height: 40, color: AppColors.border),
                   _buildPlayerAccuracyCard('Black', analysis.accuracyBlack, analysis.performanceBlack, const Color(0xFF38BDF8)),
                 ],
               ),
@@ -320,9 +321,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF27272A)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,7 +428,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             // 5. Interactive Replay Stepping Deck
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              color: const Color(0xFF18181B),
+              decoration: const BoxDecoration(
+                color: AppColors.dark,
+                border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [

@@ -7,6 +7,7 @@ import '../../services/haptics_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/storage_service.dart';
 import '../board/chess_board_widget.dart';
+import '../theme/app_theme.dart';
 
 enum PuzzleMode { practice, rush3, rush5, survival }
 
@@ -114,14 +115,14 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.surface,
         title: Text(reason, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Your Score:', style: TextStyle(color: Color(0xFFA1A1AA))),
+            const Text('Your Score:', style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 8),
-            Text('$_rushScore', style: const TextStyle(color: Color(0xFF10B981), fontSize: 36, fontWeight: FontWeight.bold)),
+            Text('$_rushScore', style: const TextStyle(color: AppColors.emerald, fontSize: 36, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -131,7 +132,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
               setState(() => _mode = PuzzleMode.practice);
               _loadPuzzle(0);
             },
-            child: const Text('Back to Practice', style: TextStyle(color: Color(0xFF10B981))),
+            child: const Text('Back to Practice', style: TextStyle(color: AppColors.emerald)),
           ),
         ],
       ),
@@ -219,9 +220,9 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     final isFlipped = p.playerColor == 'b';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.dark,
         title: const Text('🧩 Tactical Puzzles', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SafeArea(
@@ -230,7 +231,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
             // Mode Selectors
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: const Color(0xFF18181B),
+              color: AppColors.surface,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -258,22 +259,22 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
             if (_mode != PuzzleMode.practice)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                color: const Color(0xFF27272A),
+                color: AppColors.card,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Score: $_rushScore', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text('Score: $_rushScore', style: const TextStyle(color: AppColors.emerald, fontWeight: FontWeight.bold, fontSize: 14)),
                     if (_mode == PuzzleMode.rush3 || _mode == PuzzleMode.rush5)
                       Text(
                         '⏱️ ${_timeLeftSec ~/ 60}:${(_timeLeftSec % 60).toString().padLeft(2, "0")}',
-                        style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(color: AppColors.amber, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     if (_mode == PuzzleMode.survival)
                       Row(
                         children: [
-                          const Text('Strikes: ', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                          const Text('Strikes: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                           for (int s = 0; s < 3; s++)
-                            Icon(Icons.close, size: 16, color: s < _strikes ? const Color(0xFFEF4444) : const Color(0xFF52525B)),
+                            Icon(Icons.close, size: 16, color: s < _strikes ? AppColors.red : const Color(0xFF52525B)),
                         ],
                       ),
                   ],
@@ -303,9 +304,9 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF27272A)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,7 +320,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                             Flexible(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFF3B82F6).withAlpha(40), borderRadius: BorderRadius.circular(6)),
+                                decoration: BoxDecoration(color: AppColors.accentBlueMuted, borderRadius: BorderRadius.circular(6)),
                                 child: Text(
                                   p.theme,
                                   style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.bold),
@@ -329,7 +330,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text('${p.rating}', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                            Text('${p.rating}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -341,8 +342,8 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          icon: const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFF59E0B)),
-                          label: const Text('Hint', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
+                          icon: const Icon(Icons.lightbulb_outline, size: 16, color: AppColors.amber),
+                          label: const Text('Hint', style: TextStyle(color: AppColors.amber, fontSize: 12)),
                           onPressed: () => setState(() => _showHint = true),
                         ),
                         const SizedBox(width: 6),
@@ -361,7 +362,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                         ? '🎉 Solved! ${p.coachExplanation}'
                         : (_isFailed ? '❌ That wasn\'t it. Try again!' : (_showHint ? '💡 Hint: ${p.hint}' : p.description)),
                     style: TextStyle(
-                      color: _isSolved ? const Color(0xFF10B981) : (_isFailed ? const Color(0xFFEF4444) : Colors.white),
+                      color: _isSolved ? AppColors.emerald : (_isFailed ? AppColors.red : Colors.white),
                       fontSize: 13,
                     ),
                   ),
@@ -381,12 +382,12 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSel ? const Color(0xFF10B981) : const Color(0xFF27272A),
+          color: isSel ? AppColors.emerald : AppColors.card,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,
-          style: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA), fontWeight: isSel ? FontWeight.bold : FontWeight.normal, fontSize: 12),
+          style: TextStyle(color: isSel ? Colors.white : AppColors.textSecondary, fontWeight: isSel ? FontWeight.bold : FontWeight.normal, fontSize: 12),
         ),
       ),
     );

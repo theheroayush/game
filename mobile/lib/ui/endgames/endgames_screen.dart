@@ -6,6 +6,7 @@ import '../../engine/minimax_isolate.dart';
 import '../../services/haptics_service.dart';
 import '../../services/sound_service.dart';
 import '../board/chess_board_widget.dart';
+import '../theme/app_theme.dart';
 
 class EndgamesScreen extends StatefulWidget {
   final AppSettings settings;
@@ -106,9 +107,9 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
     final isFlipped = lesson.playerColor == 'b';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.dark,
         title: const Text('📚 Endgame Drills', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
           IconButton(
@@ -124,7 +125,7 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
             // Lesson selector horizontal carousel
             Container(
               height: 48,
-              color: const Color(0xFF18181B),
+              color: AppColors.surface,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -137,10 +138,10 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
                     child: ChoiceChip(
                       label: Text(l.title.split('(').first.trim()),
                       selected: isSel,
-                      selectedColor: const Color(0xFF10B981),
-                      backgroundColor: const Color(0xFF27272A),
+                      selectedColor: AppColors.emerald,
+                      backgroundColor: AppColors.card,
                       labelStyle: TextStyle(
-                        color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+                        color: isSel ? Colors.white : AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -191,9 +192,9 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF27272A)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,8 +212,8 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF3B82F6).withAlpha(40), borderRadius: BorderRadius.circular(4)),
-                        child: Text(lesson.category, style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 11)),
+                        decoration: BoxDecoration(color: AppColors.accentBlueMuted, borderRadius: BorderRadius.circular(4)),
+                        child: const Text('Endgame', style: TextStyle(color: Color(0xFF60A5FA), fontSize: 11)),
                       ),
                     ],
                   ),
@@ -221,7 +222,7 @@ class _EndgamesScreenState extends State<EndgamesScreen> {
                   const SizedBox(height: 6),
                   Text(
                     '💡 Tip: ${lesson.grandmasterTip}',
-                    style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontStyle: FontStyle.italic),
+                    style: const TextStyle(color: AppColors.amber, fontSize: 11, fontStyle: FontStyle.italic),
                   ),
                 ],
               ),

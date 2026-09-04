@@ -11,6 +11,7 @@ import '../../services/storage_service.dart';
 import '../../services/sync_service.dart';
 import '../board/chess_board_widget.dart';
 import '../board/staunton_pieces.dart';
+import '../theme/app_theme.dart';
 
 enum ToolSubView { editor, coordinates, history, profile, settings }
 
@@ -154,9 +155,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.dark,
         title: const Text('⚙️ Tools & Settings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SafeArea(
@@ -165,7 +166,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             // Segmented Navigation Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              color: const Color(0xFF18181B),
+              color: AppColors.surface,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -195,13 +196,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: ChoiceChip(
-        avatar: Icon(icon, size: 16, color: isSel ? Colors.white : const Color(0xFFA1A1AA)),
+        avatar: Icon(icon, size: 16, color: isSel ? Colors.white : AppColors.textSecondary),
         label: Text(label),
         selected: isSel,
-        selectedColor: const Color(0xFF10B981),
-        backgroundColor: const Color(0xFF27272A),
+        selectedColor: AppColors.emerald,
+        backgroundColor: AppColors.card,
         labelStyle: TextStyle(
-          color: isSel ? Colors.white : const Color(0xFFA1A1AA),
+          color: isSel ? Colors.white : AppColors.textSecondary,
           fontSize: 12,
           fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
         ),
@@ -228,7 +229,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         // 1. Board Theme
-        const Text('BOARD THEME', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        const Text('BOARD THEME', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -237,9 +238,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
             return ChoiceChip(
               label: Text(t.name.toUpperCase()),
               selected: isSel,
-              selectedColor: const Color(0xFF10B981),
-              backgroundColor: const Color(0xFF18181B),
-              labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA)),
+              selectedColor: AppColors.emerald,
+              backgroundColor: AppColors.card,
+              labelStyle: TextStyle(color: isSel ? Colors.white : AppColors.textSecondary),
               onSelected: (sel) {
                 if (sel) {
                   widget.settings.boardTheme = t;
@@ -254,7 +255,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
         const SizedBox(height: 20),
 
         // 2. Piece Theme
-        const Text('PIECE STYLE', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        const Text('PIECE STYLE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -263,9 +264,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
             return ChoiceChip(
               label: Text(p.name.toUpperCase()),
               selected: isSel,
-              selectedColor: const Color(0xFF3B82F6),
-              backgroundColor: const Color(0xFF18181B),
-              labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA)),
+              selectedColor: AppColors.accentBlue,
+              backgroundColor: AppColors.card,
+              labelStyle: TextStyle(color: isSel ? Colors.white : AppColors.textSecondary),
               onSelected: (sel) {
                 if (sel) {
                   widget.settings.pieceTheme = p;
@@ -280,11 +281,11 @@ class _ToolsScreenState extends State<ToolsScreen> {
         const SizedBox(height: 20),
 
         // 3. Audio & Haptics Toggles
-        const Text('AUDIO & HAPTICS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        const Text('AUDIO & HAPTICS', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         SwitchListTile(
           title: const Text('Sound Effects', style: TextStyle(color: Colors.white, fontSize: 14)),
           value: widget.settings.soundEnabled,
-          activeThumbColor: const Color(0xFF10B981),
+          activeThumbColor: AppColors.emerald,
           onChanged: (v) {
             widget.settings.soundEnabled = v;
             SoundService.enabled = v;
@@ -294,9 +295,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
         ),
         SwitchListTile(
           title: const Text('Haptic Vibration', style: TextStyle(color: Colors.white, fontSize: 14)),
-          subtitle: const Text('Tactile response on moves, captures and checks', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
+          subtitle: const Text('Tactile response on moves, captures and checks', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           value: widget.settings.hapticsEnabled,
-          activeThumbColor: const Color(0xFF10B981),
+          activeThumbColor: AppColors.emerald,
           onChanged: (v) {
             widget.settings.hapticsEnabled = v;
             HapticsService.enabled = v;
@@ -306,9 +307,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
         ),
         SwitchListTile(
           title: const Text('Daily Practice Notifications', style: TextStyle(color: Colors.white, fontSize: 14)),
-          subtitle: const Text('Morning tactics & evening streak reminders', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
+          subtitle: const Text('Morning tactics & evening streak reminders', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           value: widget.settings.dailyNotificationEnabled,
-          activeThumbColor: const Color(0xFF10B981),
+          activeThumbColor: AppColors.emerald,
           onChanged: (v) {
             widget.settings.dailyNotificationEnabled = v;
             NotificationService.scheduleDailyPracticeNotifications(enabled: v);
@@ -319,14 +320,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
         const SizedBox(height: 20),
 
         // 4. Local Server Cross-Platform Sync
-        const Text('LOCAL SERVER SYNCHRONIZATION', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        const Text('LOCAL SERVER SYNCHRONIZATION', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF18181B),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF27272A)),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,7 +337,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: const InputDecoration(
                   labelText: 'Local Server Base URL',
-                  labelStyle: TextStyle(color: Color(0xFF94A3B8)),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -350,7 +351,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
+                    backgroundColor: AppColors.accentBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -363,7 +364,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
               ),
               if (_syncMessage != null) ...[
                 const SizedBox(height: 8),
-                Text(_syncMessage!, style: const TextStyle(color: Color(0xFF10B981), fontSize: 12)),
+                Text(_syncMessage!, style: const TextStyle(color: AppColors.emerald, fontSize: 12)),
               ],
             ],
           ),
@@ -381,15 +382,15 @@ class _ToolsScreenState extends State<ToolsScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF18181B),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF27272A)),
+            border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
               const CircleAvatar(
                 radius: 28,
-                backgroundColor: Color(0xFF10B981),
+                backgroundColor: AppColors.emerald,
                 child: Text('♟️', style: TextStyle(fontSize: 28)),
               ),
               const SizedBox(width: 16),
@@ -398,7 +399,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 children: [
                   const Text('Pro Player', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Active Win Streak: ${stats.winStreak} 🔥 (Best: ${stats.bestWinStreak})', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
+                  Text('Active Win Streak: ${stats.winStreak} 🔥 (Best: ${stats.bestWinStreak})', style: const TextStyle(color: AppColors.amber, fontSize: 12)),
                 ],
               ),
             ],
@@ -407,17 +408,17 @@ class _ToolsScreenState extends State<ToolsScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _buildStatCard('Chess Rating', '${stats.rating}', 'Elo', const Color(0xFF10B981))),
+            Expanded(child: _buildStatCard('Chess Rating', '${stats.rating}', 'Elo', AppColors.emerald)),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('Tactics Rating', '${stats.puzzleRating}', 'Elo', const Color(0xFF3B82F6))),
+            Expanded(child: _buildStatCard('Tactics Rating', '${stats.puzzleRating}', 'Elo', AppColors.accentBlue)),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildStatCard('Games Played', '${stats.gamesPlayed}', '${stats.wins}W / ${stats.losses}L', const Color(0xFFA855F7))),
+            Expanded(child: _buildStatCard('Games Played', '${stats.gamesPlayed}', '${stats.wins}W / ${stats.losses}L', AppColors.purple)),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('Puzzle Rush Best', '${stats.puzzleRushBest}', 'high score', const Color(0xFFF59E0B))),
+            Expanded(child: _buildStatCard('Puzzle Rush Best', '${stats.puzzleRushBest}', 'high score', AppColors.amber)),
           ],
         ),
       ],
@@ -428,14 +429,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF27272A)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
@@ -450,7 +451,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     final games = StorageService.loadGames();
     if (games.isEmpty) {
       return const Center(
-        child: Text('No past games recorded yet. Play a match!', style: TextStyle(color: Color(0xFFA1A1AA))),
+        child: Text('No past games recorded yet. Play a match!', style: TextStyle(color: AppColors.textSecondary)),
       );
     }
 
@@ -463,19 +464,23 @@ class _ToolsScreenState extends State<ToolsScreen> {
         final bool isDraw = g.result == '1/2-1/2';
 
         return Card(
-          color: const Color(0xFF18181B),
+          color: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: AppColors.border),
+          ),
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: isWin ? const Color(0xFF10B981).withAlpha(40) : (isDraw ? Colors.grey.withAlpha(40) : const Color(0xFFEF4444).withAlpha(40)),
+              backgroundColor: isWin ? AppColors.emerald.withAlpha(40) : (isDraw ? Colors.grey.withAlpha(40) : AppColors.red.withAlpha(40)),
               child: Text(
                 isWin ? 'W' : (isDraw ? 'D' : 'L'),
-                style: TextStyle(color: isWin ? const Color(0xFF10B981) : (isDraw ? Colors.white : const Color(0xFFEF4444)), fontWeight: FontWeight.bold),
+                style: TextStyle(color: isWin ? AppColors.emerald : (isDraw ? Colors.white : AppColors.red), fontWeight: FontWeight.bold),
               ),
             ),
             title: Text('${g.whitePlayer} vs ${g.blackPlayer}', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-            subtitle: Text('${g.result} • ${g.timeControl} • ${g.date.split("T").first}', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
-            trailing: const Icon(Icons.analytics_outlined, color: Color(0xFF10B981)),
+            subtitle: Text('${g.result} • ${g.timeControl} • ${g.date.split("T").first}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            trailing: const Icon(Icons.analytics_outlined, color: AppColors.emerald),
             onTap: () => widget.onReviewGame?.call(g),
           ),
         );
@@ -490,7 +495,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
         // Palette
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          color: const Color(0xFF18181B),
+          color: AppColors.surface,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: ['K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'].map((p) {
@@ -501,9 +506,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isSel ? const Color(0xFF3B82F6).withAlpha(60) : Colors.transparent,
+                    color: isSel ? AppColors.accentBlueMuted : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: isSel ? const Color(0xFF3B82F6) : Colors.transparent),
+                    border: Border.all(color: isSel ? AppColors.accentBlue : Colors.transparent),
                   ),
                   child: ChessPieceWidget(type: p.toLowerCase(), color: isWhite ? 'w' : 'b', size: 26),
                 ),
@@ -553,7 +558,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
                 onPressed: () => Clipboard.setData(ClipboardData(text: _fenController.text)),
               ),
               IconButton(
-                icon: const Icon(Icons.cleaning_services, size: 18, color: Color(0xFFEF4444)),
+                icon: const Icon(Icons.cleaning_services, size: 18, color: AppColors.red),
                 onPressed: () {
                   _editorChess.clear();
                   setState(() => _fenController.text = _editorChess.fen);
@@ -572,12 +577,12 @@ class _ToolsScreenState extends State<ToolsScreen> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF18181B),
+          color: AppColors.surface,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Target: $_targetCoordinate', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 20, fontWeight: FontWeight.bold)),
-              Text('Score: $_coordScore', style: const TextStyle(color: Color(0xFF10B981), fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Target: $_targetCoordinate', style: const TextStyle(color: AppColors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Score: $_coordScore', style: const TextStyle(color: AppColors.emerald, fontSize: 18, fontWeight: FontWeight.bold)),
               Text('Time: ${_coordTimeLeft}s', style: const TextStyle(color: Colors.white, fontSize: 16)),
             ],
           ),
@@ -610,7 +615,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.emerald, foregroundColor: Colors.white),
                   onPressed: _isCoordActive ? null : _startCoordinateTrainer,
                   child: Text(_isCoordActive ? 'Training Running...' : 'Start 30s Drill'),
                 ),

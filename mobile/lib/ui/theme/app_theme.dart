@@ -18,6 +18,7 @@ class AppColors {
   static const Color goldMuted = Color(0x20EAB308);
   static const Color green = Color(0xFF22C55E);
   static const Color greenMuted = Color(0x2022C55E);
+  static const Color emerald = Color(0xFF10B981);
   static const Color red = Color(0xFFEF4444);
   static const Color redMuted = Color(0x20EF4444);
   static const Color amber = Color(0xFFF59E0B);
