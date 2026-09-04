@@ -148,7 +148,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     final moveSuccess = widget.game.move({
       'from': from,
       'to': to,
-      if (promotion != null) 'promotion': promotion,
+      'promotion': ?promotion,
     });
 
     if (moveSuccess) {

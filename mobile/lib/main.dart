@@ -11,6 +11,8 @@ import 'ui/endgames/endgames_screen.dart';
 import 'ui/openings/openings_screen.dart';
 import 'ui/tools/tools_screen.dart';
 
+import 'ui/theme/app_theme.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -60,11 +62,11 @@ class _ApexChessAppState extends State<ApexChessApp> {
       title: 'Apex Chess Master',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF09090B),
+        scaffoldBackgroundColor: AppColors.background,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF10B981),
-          secondary: Color(0xFF3B82F6),
-          surface: Color(0xFF18181B),
+          primary: AppColors.accentBlue,
+          secondary: AppColors.green,
+          surface: AppColors.surface,
         ),
       ),
       home: MainShell(
@@ -136,19 +138,19 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF18181B),
-          indicatorColor: const Color(0xFF10B981).withAlpha(40),
+          backgroundColor: AppColors.dark,
+          indicatorColor: AppColors.accentBlue.withAlpha(40),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold);
+              return const TextStyle(color: AppColors.accentBlue, fontSize: 11, fontWeight: FontWeight.bold);
             }
-            return const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11);
+            return const TextStyle(color: AppColors.textSecondary, fontSize: 11);
           }),
           iconTheme: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(color: Color(0xFF10B981), size: 22);
+              return const IconThemeData(color: AppColors.accentBlue, size: 22);
             }
-            return const IconThemeData(color: Color(0xFFA1A1AA), size: 20);
+            return const IconThemeData(color: AppColors.textSecondary, size: 20);
           }),
         ),
         child: NavigationBar(

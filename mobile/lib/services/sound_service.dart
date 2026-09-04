@@ -28,4 +28,9 @@ class SoundService {
     if (!enabled) return;
     SystemSound.play(SystemSoundType.alert);
   }
+
+  static void playHint() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+  }
 }
