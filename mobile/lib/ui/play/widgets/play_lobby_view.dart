@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../models/chess_models.dart';
 import '../../../models/engine_config.dart';
@@ -99,34 +100,39 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Header Title & Subtitle matching web
-          Row(
-            children: [
-              const Text(
-                'Play Chess vs ',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accentBlueMuted,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.accentBlue.withAlpha(120)),
-                ),
-                child: const Text(
-                  'AI',
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Play Chess vs ',
                   style: TextStyle(
-                    color: AppColors.accentBlue,
-                    fontSize: 18,
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentBlueMuted,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.accentBlue.withAlpha(120)),
+                  ),
+                  child: const Text(
+                    'AI',
+                    style: TextStyle(
+                      color: AppColors.accentBlue,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -303,12 +309,15 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                     elevation: 4,
                   ),
                   onPressed: _handleStart,
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Play Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      Icon(Icons.chevron_right_rounded, size: 16),
-                    ],
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Play Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Icon(Icons.chevron_right_rounded, size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -406,19 +415,30 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                 // Elo Ticks
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: _eloTicks.map((t) {
-                      return Text(
-                        t,
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 9,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.w600,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final targetW = math.max(300.0, constraints.maxWidth);
+                      return FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: SizedBox(
+                          width: targetW,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: _eloTicks.map((t) {
+                              return Text(
+                                t,
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 9,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
                       );
-                    }).toList(),
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -430,6 +450,7 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.star_outline_rounded, color: AppColors.accentBlue, size: 14),
                         SizedBox(width: 5),
@@ -444,12 +465,16 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                         ),
                       ],
                     ),
-                    Text(
-                      currentPers.name,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        currentPers.name,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -461,7 +486,7 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
-                  childAspectRatio: 2.3,
+                  childAspectRatio: 2.0,
                   children: _playStyles.map((st) {
                     final isSel = _personality == st['id'];
                     return InkWell(
@@ -471,7 +496,7 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSel ? const Color(0x301E3A8A) : AppColors.card,
                           borderRadius: BorderRadius.circular(12),
@@ -484,19 +509,24 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Row(
-                              children: [
-                                Text(st['icon'] as String, style: const TextStyle(fontSize: 12)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  st['title'] as String,
-                                  style: TextStyle(
-                                    color: isSel ? AppColors.accentBlue : Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(st['icon'] as String, style: const TextStyle(fontSize: 12)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    st['title'] as String,
+                                    style: TextStyle(
+                                      color: isSel ? AppColors.accentBlue : Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -551,55 +581,60 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: TIME_CONTROLS.sublist(0, 5).map((tc) {
-                    final isSel = _timeControl.id == tc.id;
-                    final parts = tc.label.split(' ');
-                    final timePart = parts.first;
-                    final typePart = parts.length > 1 ? parts[1] : '';
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final itemWidth = (constraints.maxWidth - 12) / 3;
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: TIME_CONTROLS.sublist(0, 5).map((tc) {
+                        final isSel = _timeControl.id == tc.id;
+                        final parts = tc.label.split(' ');
+                        final timePart = parts.first;
+                        final typePart = parts.length > 1 ? parts[1] : '';
 
-                    return InkWell(
-                      onTap: () {
-                        setState(() => _timeControl = tc);
-                        HapticsService.light();
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: (MediaQuery.of(context).size.width - 70) / 3,
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: isSel ? const Color(0x301E3A8A) : AppColors.card,
+                        return InkWell(
+                          onTap: () {
+                            setState(() => _timeControl = tc);
+                            HapticsService.light();
+                          },
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSel ? AppColors.accentBlue : AppColors.border,
-                            width: isSel ? 1.5 : 1.0,
+                          child: Container(
+                            width: itemWidth.clamp(60.0, double.infinity),
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: isSel ? const Color(0x301E3A8A) : AppColors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSel ? AppColors.accentBlue : AppColors.border,
+                                width: isSel ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  timePart,
+                                  style: TextStyle(
+                                    color: isSel ? AppColors.accentBlue : Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                Text(
+                                  typePart,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              timePart,
-                              style: TextStyle(
-                                color: isSel ? AppColors.accentBlue : Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 12,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                            Text(
-                              typePart,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 9,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  },
                 ),
                 const SizedBox(height: 16),
                 const Divider(color: AppColors.border, height: 1),
@@ -732,20 +767,23 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       onPressed: _handleStart,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.sports_esports_rounded, color: Colors.white, size: 20),
-                          SizedBox(width: 10),
-                          Text(
-                            'Play Now — Start your game',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.sports_esports_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 10),
+                            Text(
+                              'Play Now — Start your game',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -834,20 +872,23 @@ class _PlayLobbyViewState extends State<PlayLobbyView> {
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            avatar,
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? AppColors.accentBlue : Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              avatar,
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.accentBlue : Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

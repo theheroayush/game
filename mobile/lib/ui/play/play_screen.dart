@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:chess/chess.dart' as chess;
 import '../../models/chess_models.dart';
@@ -678,8 +679,13 @@ class _PlayScreenState extends State<PlayScreen> {
                   children: [
                     const Icon(Icons.tune_rounded, color: AppColors.accentBlue, size: 22),
                     const SizedBox(width: 8),
-                    const Text('Game Options & Setup', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    const Spacer(),
+                    const Expanded(
+                      child: Text(
+                        'Game Options & Setup',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
                       onPressed: () => Navigator.of(ctx).pop(),
@@ -1039,79 +1045,92 @@ class _PlayScreenState extends State<PlayScreen> {
           child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Live Centipawn Evaluation Bar
-                  EvaluationBarWidget(
-                    evalScore: _evalScore,
-                    flipped: _flipped,
-                    width: 10,
-                  ),
-                  const SizedBox(width: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final gutter = _showCoordinates ? 22.0 : 0.0;
+                  const evalBarWidth = 10.0;
+                  const spacing = 8.0;
+                  final availBoardW = math.max(0.0, constraints.maxWidth - evalBarWidth - spacing);
+                  final availH = constraints.maxHeight;
+                  final boardInnerSize = math.min(availBoardW - gutter, availH - gutter);
+                  final totalBoardHeight = math.max(100.0, boardInnerSize + gutter);
 
-                  // Chessboard Widget
-                  Expanded(
-                    child: Center(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          ChessBoardWidget(
-                            game: _game,
-                            flipped: _flipped,
-                            boardTheme: _boardTheme,
-                            pieceTheme: _pieceTheme,
-                            interactive: !_isAIThinking,
-                            lastMoveFrom: _lastMoveFrom,
-                            lastMoveTo: _lastMoveTo,
-                            arrows: _arrows,
-                            showCoordinates: _showCoordinates,
-                            onMove: _onPlayerMove,
-                          ),
-
-                          // Floating AI calculation indicator
-                          if (_isAIThinking)
-                            Positioned(
-                              top: 14,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.dark.withAlpha(240),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: AppColors.accentBlue),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.accentBlue.withAlpha(60),
-                                      blurRadius: 10,
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.accentBlue,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'AI Thinking...',
-                                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Live Centipawn Evaluation Bar
+                      EvaluationBarWidget(
+                        evalScore: _evalScore,
+                        flipped: _flipped,
+                        width: evalBarWidth,
+                        height: totalBoardHeight,
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(width: spacing),
+
+                      // Chessboard Widget
+                      Expanded(
+                        child: Center(
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              ChessBoardWidget(
+                                game: _game,
+                                flipped: _flipped,
+                                boardTheme: _boardTheme,
+                                pieceTheme: _pieceTheme,
+                                interactive: !_isAIThinking,
+                                lastMoveFrom: _lastMoveFrom,
+                                lastMoveTo: _lastMoveTo,
+                                arrows: _arrows,
+                                showCoordinates: _showCoordinates,
+                                onMove: _onPlayerMove,
+                              ),
+
+                              // Floating AI calculation indicator
+                              if (_isAIThinking)
+                                Positioned(
+                                  top: 14,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.dark.withAlpha(240),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: AppColors.accentBlue),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.accentBlue.withAlpha(60),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.accentBlue,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'AI Thinking...',
+                                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
