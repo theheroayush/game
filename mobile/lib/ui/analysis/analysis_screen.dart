@@ -363,30 +363,44 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ] else if (currentMove != null) ...[
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _getClassificationColor(currentMove.classification).withAlpha(40),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: _getClassificationColor(currentMove.classification)),
-                          ),
-                          child: Text(
-                            '${currentMove.classification.symbol} ${currentMove.classification.label} (${currentMove.san})',
-                            style: TextStyle(color: _getClassificationColor(currentMove.classification), fontWeight: FontWeight.bold, fontSize: 12),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _getClassificationColor(currentMove.classification).withAlpha(40),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _getClassificationColor(currentMove.classification)),
+                            ),
+                            child: Text(
+                              '${currentMove.classification.symbol} ${currentMove.classification.label} (${currentMove.san})',
+                              style: TextStyle(color: _getClassificationColor(currentMove.classification), fontWeight: FontWeight.bold, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        if (currentMove.classification == MoveClassification.blunder || currentMove.classification == MoveClassification.mistake)
+                        const SizedBox(width: 6),
+                        if (currentMove.classification == MoveClassification.blunder || currentMove.classification == MoveClassification.mistake) ...[
                           TextButton.icon(
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                            icon: const Icon(Icons.refresh, size: 16, color: Color(0xFFF59E0B)),
-                            label: const Text('Retry', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(Icons.refresh, size: 15, color: Color(0xFFF59E0B)),
+                            label: const Text('Retry', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11)),
                             onPressed: _startRetryBlunder,
                           ),
+                          const SizedBox(width: 6),
+                        ],
                         TextButton.icon(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                          icon: const Icon(Icons.science_outlined, size: 16, color: Color(0xFF38BDF8)),
-                          label: const Text('Sandbox', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.science_outlined, size: 15, color: Color(0xFF38BDF8)),
+                          label: const Text('Sandbox', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11)),
                           onPressed: _startSandboxMode,
                         ),
                       ],
@@ -412,23 +426,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
             // 5. Interactive Replay Stepping Deck
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               color: const Color(0xFF18181B),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  IconButton(icon: const Icon(Icons.first_page_rounded), onPressed: _stepFirst, color: Colors.white),
-                  IconButton(icon: const Icon(Icons.chevron_left_rounded), onPressed: _stepPrev, color: Colors.white),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.first_page_rounded),
+                    onPressed: _stepFirst,
+                    color: Colors.white,
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    onPressed: _stepPrev,
+                    color: Colors.white,
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
                     onPressed: _togglePlayPause,
                     color: const Color(0xFF10B981),
                     iconSize: 28,
                   ),
-                  IconButton(icon: const Icon(Icons.chevron_right_rounded), onPressed: _stepNext, color: Colors.white),
-                  IconButton(icon: const Icon(Icons.last_page_rounded), onPressed: _stepLast, color: Colors.white),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    onPressed: _stepNext,
+                    color: Colors.white,
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.last_page_rounded),
+                    onPressed: _stepLast,
+                    color: Colors.white,
+                  ),
                   ActionChip(
-                    label: Text('${_playbackSpeed}x', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    padding: EdgeInsets.zero,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: Text('${_playbackSpeed}x', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     backgroundColor: const Color(0xFF27272A),
                     onPressed: _toggleSpeed,
                   ),

@@ -955,125 +955,141 @@ class _PlayScreenState extends State<PlayScreen> {
     final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       color: const Color(0xFF090A0F),
       child: Row(
         children: [
           // Back chevron
           IconButton(
+            visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 30),
+            icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
             onPressed: () => _showGameOptionsSheet(),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
 
           // Brand Logo: ▲ APEX CHESS
-          Row(
-            children: const [
-              Text(
-                '▲',
-                style: TextStyle(
-                  color: Color(0xFF22C55E),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  '▲',
+                  style: TextStyle(
+                    color: Color(0xFF22C55E),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              SizedBox(width: 4),
-              Text(
-                'APEX ',
-                style: TextStyle(
-                  color: Color(0xFF22C55E),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  letterSpacing: 1.2,
+                SizedBox(width: 3),
+                Text(
+                  'APEX ',
+                  style: TextStyle(
+                    color: Color(0xFF22C55E),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 1.0,
+                  ),
                 ),
-              ),
-              Text(
-                'CHESS',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  letterSpacing: 1.2,
+                Text(
+                  'CHESS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 1.0,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 6),
 
           // Center Pill: 🤖 VS AI / Harmonic (1200)
-          GestureDetector(
-            onTap: _showGameOptionsSheet,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111827),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF1F2937)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🤖 ', style: TextStyle(fontSize: 11)),
-                      Text(
-                        _isPassAndPlay ? 'PASS & PLAY' : 'VS AI',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
+          Expanded(
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: GestureDetector(
+                  onTap: _showGameOptionsSheet,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111827),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF1F2937)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🤖 ', style: TextStyle(fontSize: 10)),
+                            Text(
+                              _isPassAndPlay ? 'PASS & PLAY' : 'VS AI',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.6,
+                              ),
+                              maxLines: 1,
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    _isPassAndPlay ? '2 Players' : '${pers.name.split(' ').first} (${diff.elo})',
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                        const SizedBox(height: 1),
+                        Text(
+                          _isPassAndPlay ? '2 Players' : '${pers.name.split(' ').first} (${diff.elo})',
+                          style: const TextStyle(
+                            color: Color(0xFF22C55E),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 8),
 
           // Right Icons: Chat & More Options
           IconButton(
+            visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             icon: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFF1F2937)),
                 color: const Color(0xFF111827),
               ),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
+              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 16),
             ),
             onPressed: _showCoachChatDialog,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           IconButton(
+            visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             icon: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFF1F2937)),
                 color: const Color(0xFF111827),
               ),
-              child: const Icon(Icons.more_horiz_rounded, color: Colors.white, size: 18),
+              child: const Icon(Icons.more_horiz_rounded, color: Colors.white, size: 16),
             ),
             onPressed: _showGameOptionsSheet,
           ),
@@ -1212,7 +1228,7 @@ class _PlayScreenState extends State<PlayScreen> {
     required bool isActiveTurn,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           // Circular Avatar with Glowing Emerald Rim & Online Dot
@@ -1220,8 +1236,8 @@ class _PlayScreenState extends State<PlayScreen> {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF1E293B),
@@ -1239,7 +1255,7 @@ class _PlayScreenState extends State<PlayScreen> {
                     type: pieceType,
                     color: pieceColor,
                     theme: _pieceTheme,
-                    size: 26,
+                    size: 24,
                   ),
                 ),
               ),
@@ -1248,78 +1264,91 @@ class _PlayScreenState extends State<PlayScreen> {
                 right: -1,
                 bottom: -1,
                 child: Container(
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: const Color(0xFF22C55E),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF090A0F), width: 2),
+                    border: Border.all(color: const Color(0xFF090A0F), width: 1.5),
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
-          // Name and Rating Crown
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+          // Name and Rating Crown (Expanded so it flexes)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  const Text('👑 ', style: TextStyle(fontSize: 12)),
-                  Text(
-                    rating,
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('👑 ', style: TextStyle(fontSize: 11)),
+                    Flexible(
+                      child: Text(
+                        rating,
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 10),
 
           // Large Digital Clock Card (09:24 / 09:31)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111827),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isActiveTurn ? const Color(0xFF22C55E) : const Color(0xFF1F2937),
-                width: isActiveTurn ? 1.5 : 1.0,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isActiveTurn ? const Color(0xFF22C55E) : const Color(0xFF1F2937),
+                  width: isActiveTurn ? 1.5 : 1.0,
+                ),
+                boxShadow: isActiveTurn
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF22C55E).withAlpha(50),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
               ),
-              boxShadow: isActiveTurn
-                  ? [
-                      BoxShadow(
-                        color: const Color(0xFF22C55E).withAlpha(50),
-                        blurRadius: 8,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Text(
-              _timeControl.baseMinutes > 0 ? _formatClock(clockSec) : '∞',
-              style: TextStyle(
-                color: isActiveTurn ? Colors.white : const Color(0xFFCBD5E1),
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-                letterSpacing: 1.0,
+              child: Text(
+                _timeControl.baseMinutes > 0 ? _formatClock(clockSec) : '∞',
+                style: TextStyle(
+                  color: isActiveTurn ? Colors.white : const Color(0xFFCBD5E1),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
           ),
@@ -1330,7 +1359,7 @@ class _PlayScreenState extends State<PlayScreen> {
 
   Widget _buildBottomActionBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       decoration: const BoxDecoration(
         color: Color(0xFF090A0F),
         border: Border(
@@ -1338,35 +1367,44 @@ class _PlayScreenState extends State<PlayScreen> {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildBottomActionItem(
-            icon: Icons.menu_rounded,
-            label: 'Options',
-            onTap: _showGameOptionsSheet,
+          Expanded(
+            child: _buildBottomActionItem(
+              icon: Icons.menu_rounded,
+              label: 'Options',
+              onTap: _showGameOptionsSheet,
+            ),
           ),
-          _buildBottomActionItem(
-            icon: Icons.arrow_back_rounded,
-            label: 'Back',
-            onTap: _handleUndoMove,
+          Expanded(
+            child: _buildBottomActionItem(
+              icon: Icons.arrow_back_rounded,
+              label: 'Back',
+              onTap: _handleUndoMove,
+            ),
           ),
-          _buildBottomActionItem(
-            icon: Icons.arrow_forward_rounded,
-            label: 'Forward',
-            onTap: _handleRedoMove,
+          Expanded(
+            child: _buildBottomActionItem(
+              icon: Icons.arrow_forward_rounded,
+              label: 'Forward',
+              onTap: _handleRedoMove,
+            ),
           ),
-          _buildBottomActionItem(
-            icon: Icons.lightbulb_outline_rounded,
-            label: 'Hint',
-            badgeText: '$_hintsRemaining',
-            badgeColor: const Color(0xFF22C55E),
-            onTap: _handleHint,
+          Expanded(
+            child: _buildBottomActionItem(
+              icon: Icons.lightbulb_outline_rounded,
+              label: 'Hint',
+              badgeText: '$_hintsRemaining',
+              badgeColor: const Color(0xFF22C55E),
+              onTap: _handleHint,
+            ),
           ),
-          _buildBottomActionItem(
-            icon: Icons.flag_rounded,
-            label: 'Resign',
-            color: const Color(0xFFEF4444),
-            onTap: _handleResignPrompt,
+          Expanded(
+            child: _buildBottomActionItem(
+              icon: Icons.flag_rounded,
+              label: 'Resign',
+              color: const Color(0xFFEF4444),
+              onTap: _handleResignPrompt,
+            ),
           ),
         ],
       ),
@@ -1385,49 +1423,53 @@ class _PlayScreenState extends State<PlayScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: 22),
-                if (badgeText != null)
-                  Positioned(
-                    top: -6,
-                    right: -10,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: badgeColor ?? const Color(0xFF22C55E),
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Center(
-                        child: Text(
-                          badgeText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  if (badgeText != null)
+                    Positioned(
+                      top: -6,
+                      right: -10,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: badgeColor ?? const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                        child: Center(
+                          child: Text(
+                            badgeText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+              ),
+            ],
+          ),
         ),
       ),
     );

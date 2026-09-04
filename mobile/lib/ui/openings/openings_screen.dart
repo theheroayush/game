@@ -144,35 +144,52 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
 
             // Stepping navigation bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               color: const Color(0xFF18181B),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.first_page_rounded),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.first_page_rounded, size: 22),
                     color: Colors.white,
                     onPressed: () => _stepTo(0),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_left_rounded),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.chevron_left_rounded, size: 22),
                     color: Colors.white,
                     onPressed: () => _stepTo(_currentMoveIndex - 1),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'Move $_currentMoveIndex / ${opening.moves.length}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Text(
+                        'Move $_currentMoveIndex / ${opening.moves.length}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right_rounded),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.chevron_right_rounded, size: 22),
                     color: Colors.white,
                     onPressed: () => _stepTo(_currentMoveIndex + 1),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.last_page_rounded),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.last_page_rounded, size: 22),
                     color: Colors.white,
                     onPressed: () => _stepTo(opening.moves.length),
                   ),
@@ -193,9 +210,16 @@ class _OpeningsScreenState extends State<OpeningsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${opening.eco} — ${opening.name}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Expanded(
+                        child: Text(
+                          '${opening.eco} — ${opening.name}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(color: const Color(0xFF10B981).withAlpha(40), borderRadius: BorderRadius.circular(4)),

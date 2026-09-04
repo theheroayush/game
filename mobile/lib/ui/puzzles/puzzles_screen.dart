@@ -229,23 +229,28 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
           children: [
             // Mode Selectors
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: const Color(0xFF18181B),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildModeChip('Practice', PuzzleMode.practice, () {
-                    _rushTimer?.cancel();
-                    setState(() {
-                      _mode = PuzzleMode.practice;
-                      _isRushActive = false;
-                    });
-                    _loadPuzzle(_currentPuzzleIndex);
-                  }),
-                  _buildModeChip('3m Rush', PuzzleMode.rush3, () => _startRushMode(PuzzleMode.rush3)),
-                  _buildModeChip('5m Rush', PuzzleMode.rush5, () => _startRushMode(PuzzleMode.rush5)),
-                  _buildModeChip('Survival', PuzzleMode.survival, _startSurvivalMode),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildModeChip('Practice', PuzzleMode.practice, () {
+                      _rushTimer?.cancel();
+                      setState(() {
+                        _mode = PuzzleMode.practice;
+                        _isRushActive = false;
+                      });
+                      _loadPuzzle(_currentPuzzleIndex);
+                    }),
+                    const SizedBox(width: 8),
+                    _buildModeChip('3m Rush', PuzzleMode.rush3, () => _startRushMode(PuzzleMode.rush3)),
+                    const SizedBox(width: 8),
+                    _buildModeChip('5m Rush', PuzzleMode.rush5, () => _startRushMode(PuzzleMode.rush5)),
+                    const SizedBox(width: 8),
+                    _buildModeChip('Survival', PuzzleMode.survival, _startSurvivalMode),
+                  ],
+                ),
               ),
             ),
 
@@ -307,23 +312,43 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF3B82F6).withAlpha(40), borderRadius: BorderRadius.circular(6)),
-                        child: Text(p.theme, style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.bold)),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: const Color(0xFF3B82F6).withAlpha(40), borderRadius: BorderRadius.circular(6)),
+                                child: Text(
+                                  p.theme,
+                                  style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text('${p.rating}', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                          ],
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      Text('${p.rating} Rating', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
-                      const Spacer(),
                       if (_mode == PuzzleMode.practice) ...[
                         TextButton.icon(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           icon: const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFF59E0B)),
                           label: const Text('Hint', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
                           onPressed: () => setState(() => _showHint = true),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: const Icon(Icons.arrow_forward, size: 20, color: Colors.white),
                           onPressed: () => _loadPuzzle((_currentPuzzleIndex + 1) % PUZZLES_DATABASE.length),
                         ),
