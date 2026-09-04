@@ -215,23 +215,81 @@ class _PlayScreenState extends State<PlayScreen> {
         moveSans: _moveSans,
       );
 
-      final res = await EngineService.getBestMove(req);
+      AIMoveResponse? res;
+      try {
+        res = await EngineService.getBestMove(req);
+      } catch (err) {
+        debugPrint('EngineService getBestMove failed: $err');
+      }
 
-      if (!_isPlaying) return;
+      if (!_isPlaying || !mounted) return;
 
-      final targetPiece = _game.get(res.to);
-      final isCapture = targetPiece != null;
+      bool success = false;
+      String? playedFrom;
+      String? playedTo;
+      String? playedSan;
+      bool isCapture = false;
 
-      final success = _game.move({
-        'from': res.from,
-        'to': res.to,
-        if (res.promotion != null) 'promotion': res.promotion,
-      });
+      if (res != null) {
+        // 1. Try standard SAN execution first (guarantees promotion formatting)
+        try {
+          final targetPiece = _game.get(res.to);
+          isCapture = targetPiece != null;
+          success = _game.move(res.san);
+          if (success) {
+            playedFrom = res.from;
+            playedTo = res.to;
+            playedSan = res.san;
+          }
+        } catch (_) {
+          success = false;
+        }
+
+        // 2. Try verbose coordinates
+        if (!success) {
+          try {
+            final promo = res.promotion != null && res.promotion!.isNotEmpty ? res.promotion![0] : null;
+            final moveMap = <String, dynamic>{
+              'from': res.from,
+              'to': res.to,
+            };
+            if (promo != null) {
+              moveMap['promotion'] = promo;
+            }
+            success = _game.move(moveMap);
+            if (success) {
+              playedFrom = res.from;
+              playedTo = res.to;
+              playedSan = res.san;
+            }
+          } catch (_) {
+            success = false;
+          }
+        }
+      }
+
+      // 3. Self-healing fallback: if engine response failed or errored, pick first legal move
+      if (!success && !_game.game_over) {
+        final rawLegal = _game.moves({'verbose': true});
+        if (rawLegal.isNotEmpty) {
+          final fallbackMove = rawLegal.first as Map<String, dynamic>;
+          success = _game.move(fallbackMove);
+          if (success) {
+            playedFrom = fallbackMove['from'] as String?;
+            playedTo = fallbackMove['to'] as String?;
+            playedSan = fallbackMove['san'] as String?;
+            final targetPiece = playedTo != null ? _game.get(playedTo) : null;
+            isCapture = targetPiece != null;
+          }
+        }
+      }
 
       if (success) {
-        _lastMoveFrom = res.from;
-        _lastMoveTo = res.to;
-        _moveSans.add(res.san);
+        _lastMoveFrom = playedFrom;
+        _lastMoveTo = playedTo;
+        if (playedSan != null) {
+          _moveSans.add(playedSan);
+        }
 
         if (isCapture) {
           SoundService.playCapture();
@@ -258,8 +316,8 @@ class _PlayScreenState extends State<PlayScreen> {
         _evalScore = evaluatePosition(_game, _personality);
         _checkGameOver();
       }
-    } catch (_) {
-      // Graceful fallback
+    } catch (e) {
+      debugPrint('AI move trigger unexpected error: $e');
     } finally {
       if (mounted) {
         setState(() {

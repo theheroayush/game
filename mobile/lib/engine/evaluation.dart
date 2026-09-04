@@ -234,23 +234,30 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   // Personality adjustments
   int personalityMod = 0;
   if (personality == AIPersonalityId.aggressive) {
-    personalityMod += (whiteMaterial > blackMaterial ? 35 : -35);
+    // Nelson Queen attacks & aggressive initiative
+    personalityMod += (whiteMaterial > blackMaterial ? 40 : -40);
+    if (game.in_check) {
+      personalityMod += game.turn == chess.Color.BLACK ? 65 : -65;
+    }
   } else if (personality == AIPersonalityId.tactical) {
     if (game.in_check) {
-      personalityMod += game.turn == chess.Color.BLACK ? 45 : -45;
+      personalityMod += game.turn == chess.Color.BLACK ? 50 : -50;
     }
+  } else if (personality == AIPersonalityId.positional) {
+    if (whiteBishops >= 2) personalityMod += 25;
+    if (blackBishops >= 2) personalityMod -= 25;
   }
 
   return whiteScore - blackScore + personalityMod;
 }
 
-// Quiescence Search with Delta Pruning
+// Quiescence Search with Delta Pruning (exchanges horizon)
 int quiescence(
   chess.Chess game,
   int alpha,
   int beta,
   bool isMaximizing, [
-  int depth = 3,
+  int depth = 2,
   AIPersonalityId personality = AIPersonalityId.balanced,
 ]) {
   final standPat = evaluatePosition(game, personality);
@@ -343,6 +350,23 @@ final List<List<Map<String, dynamic>?>> _killerMoves = List.generate(64, (_) => 
 // Transposition Table Cache
 final Map<String, Map<String, dynamic>> _ttCache = {};
 
+void resetEngineSearchState() {
+  for (int i = 0; i < 64; i++) {
+    _killerMoves[i][0] = null;
+    _killerMoves[i][1] = null;
+  }
+  if (_ttCache.length > 20000) {
+    _ttCache.clear();
+  }
+}
+
+class ScoredMove {
+  final Map<String, dynamic> move;
+  final int score;
+
+  const ScoredMove({required this.move, required this.score});
+}
+
 class MinimaxResult {
   final int score;
   final Map<String, dynamic>? bestMove;
@@ -373,7 +397,7 @@ MinimaxResult minimax(
 
   if (depth <= 0) {
     if (useQuiescence) {
-      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, 3, personality));
+      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, 2, personality));
     }
     return MinimaxResult(score: evaluatePosition(game, personality));
   }
@@ -527,58 +551,136 @@ class SearchResult {
   final int score;
   final Map<String, dynamic>? bestMove;
   final int depthReached;
+  final List<ScoredMove> rootMoves;
 
   const SearchResult({
     required this.score,
     this.bestMove,
     required this.depthReached,
+    this.rootMoves = const [],
   });
 }
 
-// Iterative Deepening Search with Time Budgeting
+// Iterative Deepening Search with Time Budgeting and Committed Depth Buffer
 SearchResult searchBestMoveIterative(
   chess.Chess game,
   int maxDepth,
   int maxTimeMs,
   bool isMaximizing, {
   AIPersonalityId personality = AIPersonalityId.balanced,
+  bool useQuiescence = true,
 }) {
   final startTime = DateTime.now().millisecondsSinceEpoch;
   final deadline = startTime + maxTimeMs;
 
   final rawMoves = game.moves({'verbose': true});
   if (rawMoves.isEmpty) {
-    return SearchResult(score: evaluatePosition(game, personality), depthReached: 0);
+    return SearchResult(
+      score: evaluatePosition(game, personality),
+      depthReached: 0,
+      rootMoves: const [],
+    );
   }
 
-  Map<String, dynamic>? bestMove = rawMoves.first as Map<String, dynamic>;
-  int bestScore = isMaximizing ? -999999 : 999999;
-  int depthReached = 1;
+  final rootCandidates = rawMoves.map((m) => m as Map<String, dynamic>).toList();
+  Map<String, dynamic> completedBestMove = rootCandidates.first;
+  int completedScore = isMaximizing ? -999999 : 999999;
+  int completedDepth = 1;
+  List<ScoredMove> completedRootMoves = [];
+
+  // Reset killer moves for fresh search
+  resetEngineSearchState();
+
+  final currentOrderedMoves = List<Map<String, dynamic>>.from(rootCandidates);
 
   for (int d = 1; d <= maxDepth; d++) {
-    if (DateTime.now().millisecondsSinceEpoch >= deadline && d > 1) {
+    final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
+    // Predictive time cutoff: if more than 70% of budget has elapsed and d > 2, do not start deeper iteration
+    if (d > 2 && elapsed >= maxTimeMs * 0.70) {
       break;
     }
 
-    final result = minimax(
-      game,
-      d,
-      -999999,
-      999999,
-      isMaximizing,
-      personality: personality,
-      useQuiescence: true,
-      deadline: deadline,
-      ply: 0,
-    );
+    int alpha = -999999;
+    int beta = 999999;
+    bool iterationInterrupted = false;
+    final iterationScoredMoves = <ScoredMove>[];
 
-    if (!result.interrupted && result.bestMove != null) {
-      bestMove = result.bestMove;
-      bestScore = result.score;
-      depthReached = d;
-    } else if (result.bestMove != null && d == 1) {
-      bestMove = result.bestMove;
-      bestScore = result.score;
+    // Put previously found best move first to maximize alpha-beta cutoffs
+    currentOrderedMoves.sort((a, b) {
+      if (a['from'] == completedBestMove['from'] && a['to'] == completedBestMove['to']) return -1;
+      if (b['from'] == completedBestMove['from'] && b['to'] == completedBestMove['to']) return 1;
+      return 0;
+    });
+
+    Map<String, dynamic>? currentDepthBestMove;
+    int currentDepthBestScore = isMaximizing ? -999999 : 999999;
+
+    for (final move in currentOrderedMoves) {
+      if (DateTime.now().millisecondsSinceEpoch >= deadline && d > 1) {
+        iterationInterrupted = true;
+        break;
+      }
+
+      game.move(move);
+      final res = minimax(
+        game,
+        d - 1,
+        alpha,
+        beta,
+        !isMaximizing,
+        personality: personality,
+        useQuiescence: useQuiescence,
+        deadline: deadline,
+        ply: 1,
+      );
+      game.undo();
+
+      if (res.interrupted) {
+        iterationInterrupted = true;
+        break;
+      }
+
+      iterationScoredMoves.add(ScoredMove(move: move, score: res.score));
+
+      if (isMaximizing) {
+        if (res.score > currentDepthBestScore) {
+          currentDepthBestScore = res.score;
+          currentDepthBestMove = move;
+        }
+        alpha = max(alpha, res.score);
+      } else {
+        if (res.score < currentDepthBestScore) {
+          currentDepthBestScore = res.score;
+          currentDepthBestMove = move;
+        }
+        beta = min(beta, res.score);
+      }
+    }
+
+    // Only commit if iteration fully evaluated all root moves!
+    if (!iterationInterrupted && currentDepthBestMove != null && iterationScoredMoves.length == rootCandidates.length) {
+      iterationScoredMoves.sort((a, b) {
+        return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
+      });
+
+      completedBestMove = currentDepthBestMove;
+      completedScore = currentDepthBestScore;
+      completedDepth = d;
+      completedRootMoves = List.from(iterationScoredMoves);
+
+      // Re-order currentOrderedMoves for next depth
+      currentOrderedMoves.clear();
+      for (final sm in iterationScoredMoves) {
+        currentOrderedMoves.add(sm.move);
+      }
+    } else if (d == 1 && iterationScoredMoves.isNotEmpty) {
+      // Ensure at least depth 1 has data
+      iterationScoredMoves.sort((a, b) {
+        return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
+      });
+      completedBestMove = iterationScoredMoves.first.move;
+      completedScore = iterationScoredMoves.first.score;
+      completedRootMoves = List.from(iterationScoredMoves);
     }
 
     if (DateTime.now().millisecondsSinceEpoch >= deadline) {
@@ -586,5 +688,15 @@ SearchResult searchBestMoveIterative(
     }
   }
 
-  return SearchResult(score: bestScore, bestMove: bestMove, depthReached: depthReached);
+  // Fallback if completedRootMoves is empty
+  if (completedRootMoves.isEmpty) {
+    completedRootMoves = rootCandidates.map((m) => ScoredMove(move: m, score: completedScore)).toList();
+  }
+
+  return SearchResult(
+    score: completedScore,
+    bestMove: completedBestMove,
+    depthReached: completedDepth,
+    rootMoves: completedRootMoves,
+  );
 }

@@ -36,6 +36,33 @@ class AIMoveResponse {
   });
 }
 
+String? _formatPromotion(dynamic promo) {
+  if (promo == null) return null;
+  final str = promo.toString().toLowerCase();
+  if (str.isEmpty) return null;
+  if (str.contains('q')) return 'q';
+  if (str.contains('r')) return 'r';
+  if (str.contains('b')) return 'b';
+  if (str.contains('n')) return 'n';
+  return str[0];
+}
+
+bool _allowsImmediateMate(chess.Chess baseGame, Map<String, dynamic> move) {
+  try {
+    final temp = chess.Chess.fromFEN(baseGame.fen);
+    final moved = temp.move(move);
+    if (!moved) return false;
+    final oppMoves = temp.moves({'verbose': true});
+    for (final om in oppMoves) {
+      final map = om as Map<String, dynamic>;
+      if (map['san'].toString().contains('#')) {
+        return true;
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
 // Top-level worker function executed in background Dart Isolate
 AIMoveResponse computeAIMove(AIMoveRequest request) {
   final game = chess.Chess.fromFEN(request.fen);
@@ -45,65 +72,131 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
   );
   final bool isWhite = game.turn == chess.Color.WHITE;
 
-  // 1. Opening book check (first 12 plies)
-  if (request.moveSans.length < 12) {
-    final opening = findOpeningByMoves(request.moveSans);
-    if (opening != null && request.moveSans.length < opening.moves.length) {
-      final nextSan = opening.moves[request.moveSans.length];
-      try {
-        final temp = chess.Chess.fromFEN(request.fen);
-        final bookMove = temp.move(nextSan);
-        if (bookMove) {
-          final m = temp.history.last;
-          return AIMoveResponse(
-            from: m.move.fromAlgebraic,
-            to: m.move.toAlgebraic,
-            promotion: m.move.promotion?.name.toLowerCase(),
-            san: nextSan,
-            score: evaluatePosition(temp, request.personality),
-          );
+  // 1. Opening book check (calibrated by bot level bookMaxPlies)
+  if (request.moveSans.length < diff.bookMaxPlies) {
+    // For novice bots (Level 1 Jimmy), 50% chance to leave book early for natural beginner play
+    final useBook = diff.level > 1 || Random().nextDouble() < 0.45;
+    if (useBook) {
+      final opening = findOpeningByMoves(request.moveSans);
+      if (opening != null && request.moveSans.length < opening.moves.length) {
+        final nextSan = opening.moves[request.moveSans.length];
+        try {
+          final temp = chess.Chess.fromFEN(request.fen);
+          final bookMove = temp.move(nextSan);
+          if (bookMove) {
+            final m = temp.history.last;
+            return AIMoveResponse(
+              from: m.move.fromAlgebraic,
+              to: m.move.toAlgebraic,
+              promotion: _formatPromotion(m.move.promotion),
+              san: nextSan,
+              score: evaluatePosition(temp, request.personality),
+            );
+          }
+        } catch (_) {
+          // Fall back to calibrated search
         }
-      } catch (_) {
-        // Fall back to minimax search
       }
     }
   }
 
-  // 2. Iterative Deepening Minimax Search
+  // 2. Iterative Deepening Minimax Search with committed depth buffer
   final searchResult = searchBestMoveIterative(
     game,
     diff.depth,
     diff.moveTimeMs,
     isWhite,
     personality: request.personality,
+    useQuiescence: diff.useQuiescence,
   );
 
-  Map<String, dynamic>? chosen = searchResult.bestMove;
-
-  // 3. Humanized blunder injection for lower Elo levels (1 to 4)
-  if (diff.blunderProbability > 0 && Random().nextDouble() < diff.blunderProbability) {
+  final rootMoves = searchResult.rootMoves;
+  if (rootMoves.isEmpty) {
     final rawMoves = game.moves({'verbose': true});
-    if (rawMoves.length > 1) {
-      final candidates = rawMoves.map((m) => m as Map<String, dynamic>).toList();
-      chosen = candidates[Random().nextInt(min(candidates.length, 3))];
+    if (rawMoves.isEmpty) {
+      throw StateError('No legal moves available: position is checkmate or stalemate');
+    }
+    final fallback = rawMoves.first as Map<String, dynamic>;
+    return AIMoveResponse(
+      from: fallback['from'] as String,
+      to: fallback['to'] as String,
+      promotion: _formatPromotion(fallback['promotion']),
+      san: fallback['san'] as String,
+      score: searchResult.score,
+    );
+  }
+
+  // 3. Boltzmann (Softmax) Move Selection & Evaluation Noise Injection
+  final scoredCandidates = rootMoves.map((sm) {
+    double noisyScore = sm.score.toDouble();
+    if (diff.evalNoise > 0) {
+      // 3-uniform sum approximation of Gaussian noise N(0, evalNoise^2)
+      final r1 = Random().nextDouble();
+      final r2 = Random().nextDouble();
+      final r3 = Random().nextDouble();
+      final z = (r1 + r2 + r3 - 1.5) * 1.63299;
+      noisyScore += z * diff.evalNoise;
+    }
+    return MapEntry(sm.move, noisyScore);
+  }).toList();
+
+  // Sort candidates by noisy score: highest first for White, lowest first for Black
+  scoredCandidates.sort((a, b) {
+    return isWhite ? b.value.compareTo(a.value) : a.value.compareTo(b.value);
+  });
+
+  Map<String, dynamic>? chosen;
+
+  // 4. Humanized Blunder / Tactical Oversight for Novices
+  if (diff.blunderProbability > 0 && Random().nextDouble() < diff.blunderProbability && scoredCandidates.length > 1) {
+    // Pick an inferior move (small positional inaccuracy or oversight)
+    final candidateSlice = scoredCandidates.skip(1).take(min(3, scoredCandidates.length - 1)).toList();
+    if (candidateSlice.isNotEmpty) {
+      // Evasion: filter out moves that hang immediate mate-in-1 if alternatives exist
+      final nonMating = candidateSlice.where((e) => !_allowsImmediateMate(game, e.key)).toList();
+      if (nonMating.isNotEmpty) {
+        chosen = nonMating[Random().nextInt(nonMating.length)].key;
+      }
     }
   }
 
+  // If no blunder triggered or blunder was filtered, sample using Boltzmann temperature distribution
   if (chosen == null) {
-    final rawMoves = game.moves({'verbose': true});
-    if (rawMoves.isNotEmpty) {
-      chosen = rawMoves.first as Map<String, dynamic>;
-    }
-  }
+    if (diff.temperature <= 2.0 || scoredCandidates.length == 1) {
+      // High Elo (2200-2500): always pick top verified move
+      chosen = scoredCandidates.first.key;
+    } else {
+      final bestVal = scoredCandidates.first.value;
+      final temp = max(1.0, diff.temperature);
 
-  if (chosen == null) {
-    throw Exception('No legal moves available in position');
+      // Compute unnormalized Boltzmann weights: exp(-delta / T)
+      final weights = <double>[];
+      double sumWeights = 0.0;
+      for (final entry in scoredCandidates) {
+        final delta = (entry.value - bestVal).abs();
+        final weight = exp(-delta / temp);
+        weights.add(weight);
+        sumWeights += weight;
+      }
+
+      if (sumWeights > 0) {
+        double roll = Random().nextDouble() * sumWeights;
+        for (int i = 0; i < scoredCandidates.length; i++) {
+          roll -= weights[i];
+          if (roll <= 0) {
+            chosen = scoredCandidates[i].key;
+            break;
+          }
+        }
+      }
+      chosen ??= scoredCandidates.first.key;
+    }
   }
 
   return AIMoveResponse(
     from: chosen['from'] as String,
     to: chosen['to'] as String,
-    promotion: chosen['promotion']?.toString(),
+    promotion: _formatPromotion(chosen['promotion']),
     san: chosen['san'] as String,
     score: searchResult.score,
   );

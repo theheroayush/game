@@ -45,6 +45,11 @@ class DifficultyConfig {
   final int moveTimeMs;
   final String description;
   final String badgeColor;
+  final int evalNoise; // Centipawn noise standard deviation
+  final int bookMaxPlies; // Opening book cutoff ply
+  final double temperature; // Boltzmann move selection temperature
+  final bool useQuiescence; // Quiescence tactical horizon
+  final int nodeBudget; // Search node calculation limit
 
   const DifficultyConfig({
     required this.level,
@@ -56,6 +61,11 @@ class DifficultyConfig {
     required this.moveTimeMs,
     required this.description,
     required this.badgeColor,
+    this.evalNoise = 0,
+    this.bookMaxPlies = 12,
+    this.temperature = 1.0,
+    this.useQuiescence = true,
+    this.nodeBudget = 50000,
   });
 }
 
