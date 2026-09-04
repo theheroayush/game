@@ -7,51 +7,41 @@ import '../../services/haptics_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/storage_service.dart';
 import '../board/chess_board_widget.dart';
-import '../board/board_painter.dart';
 
-enum PuzzleMode { practice, rush3m, rush5m, survival, themes }
+enum PuzzleMode { practice, rush3, rush5, survival }
 
 class PuzzlesScreen extends StatefulWidget {
   final AppSettings settings;
 
-  const PuzzlesScreen({
-    super.key,
-    required this.settings,
-  });
+  const PuzzlesScreen({super.key, required this.settings});
 
   @override
   State<PuzzlesScreen> createState() => _PuzzlesScreenState();
 }
 
 class _PuzzlesScreenState extends State<PuzzlesScreen> {
-  PuzzleMode _activeMode = PuzzleMode.practice;
-  List<ChessPuzzle> _activePuzzlesList = PUZZLES_DATABASE;
+  PuzzleMode _mode = PuzzleMode.practice;
   int _currentPuzzleIndex = 0;
-  late ChessPuzzle _currentPuzzle;
-  late chess.Chess _puzzleChess;
+  int _moveStep = 0;
 
-  int _puzzleMoveIndex = 0;
-  bool _isSolved = false;
-  bool _isFailed = false;
-  String? _statusMessage;
-  List<BoardArrow> _arrows = [];
+  chess.Chess _game = chess.Chess();
   String? _lastMoveFrom;
   String? _lastMoveTo;
 
-  // Timed rush mode state
-  int _rushTimeSeconds = 180;
+  bool _isSolved = false;
+  bool _isFailed = false;
+  bool _showHint = false;
+
+  // Rush & Survival state
   int _rushScore = 0;
-  int _rushStrikes = 0;
+  int _strikes = 0;
+  int _timeLeftSec = 0;
   Timer? _rushTimer;
   bool _isRushActive = false;
-
-  // Today's challenge solved count in session
-  int _todayChallengeCount = 3;
 
   @override
   void initState() {
     super.initState();
-    _activePuzzlesList = List.from(PUZZLES_DATABASE);
     _loadPuzzle(0);
   }
 
@@ -62,196 +52,58 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
   }
 
   void _loadPuzzle(int index) {
-    if (_activePuzzlesList.isEmpty) {
-      _activePuzzlesList = List.from(PUZZLES_DATABASE);
+    if (index >= PUZZLES_DATABASE.length) {
+      index = 0;
     }
-    _currentPuzzleIndex = index % _activePuzzlesList.length;
-    _currentPuzzle = _activePuzzlesList[_currentPuzzleIndex];
-    _puzzleChess = chess.Chess.fromFEN(_currentPuzzle.fen);
-    _puzzleMoveIndex = 0;
-    _isSolved = false;
-    _isFailed = false;
-    _statusMessage = null;
-    _arrows = [];
-    _lastMoveFrom = null;
-    _lastMoveTo = null;
-  }
+    final p = PUZZLES_DATABASE[index];
+    _game = chess.Chess.fromFEN(p.fen);
 
-  void _onPlayerMove(String from, String to, String? promotion) {
-    if (_isSolved || _isFailed) return;
-
-    final targetPiece = _puzzleChess.get(to);
-    final isCapture = targetPiece != null;
-
-    final moveSuccess = _puzzleChess.move({
-      'from': from,
-      'to': to,
-      if (promotion != null) 'promotion': promotion,
+    setState(() {
+      _currentPuzzleIndex = index;
+      _moveStep = 0;
+      _isSolved = false;
+      _isFailed = false;
+      _showHint = false;
+      _lastMoveFrom = null;
+      _lastMoveTo = null;
     });
-
-    if (!moveSuccess) return;
-
-    _lastMoveFrom = from;
-    _lastMoveTo = to;
-    final lastMoveSan = _puzzleChess.getHistory().last.toString();
-
-    // Check against solution
-    final expectedMove = _currentPuzzle.moves[_puzzleMoveIndex];
-    final isCorrect = lastMoveSan == expectedMove;
-
-    if (isCorrect) {
-      if (isCapture) {
-        SoundService.playCapture();
-        HapticsService.medium();
-      } else {
-        SoundService.playMove();
-        HapticsService.light();
-      }
-
-      _puzzleMoveIndex++;
-
-      if (_puzzleMoveIndex >= _currentPuzzle.moves.length) {
-        // Puzzle solved completely!
-        setState(() {
-          _isSolved = true;
-          _statusMessage = '🎉 Correct! +10 pts';
-          _arrows = [];
-          if (_todayChallengeCount < 5) _todayChallengeCount++;
-        });
-
-        SoundService.playVictory();
-        HapticsService.vibrate();
-
-        final stats = StorageService.loadStats();
-        stats.puzzlesSolved++;
-        stats.puzzleRating += 10;
-        StorageService.saveStats(stats);
-
-        if (_isRushActive) {
-          _rushScore++;
-          Future.delayed(const Duration(milliseconds: 900), () {
-            if (mounted && _isRushActive) {
-              setState(() {
-                _loadPuzzle(_currentPuzzleIndex + 1);
-              });
-            }
-          });
-        }
-      } else {
-        // Play AI opponent response move
-        setState(() {
-          _statusMessage = 'Best move! Keep going...';
-        });
-
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (!mounted || _isSolved || _isFailed) return;
-          final aiMove = _currentPuzzle.moves[_puzzleMoveIndex];
-          _puzzleChess.move(aiMove);
-          _puzzleMoveIndex++;
-          _lastMoveFrom = null;
-          _lastMoveTo = null;
-          SoundService.playMove();
-          HapticsService.light();
-          setState(() {});
-        });
-      }
-    } else {
-      // Incorrect move
-      SoundService.playError();
-      HapticsService.heavy();
-      setState(() {
-        _isFailed = true;
-        _statusMessage = '❌ Not the best move. Try again!';
-      });
-
-      if (_isRushActive) {
-        _rushStrikes++;
-        if (_rushStrikes >= 3) {
-          _endRush();
-        }
-      }
-    }
   }
 
-  void _showHint() {
-    HapticsService.light();
-    if (_puzzleMoveIndex < _currentPuzzle.moves.length) {
-      final moves = _puzzleChess.moves({'verbose': true});
-      final expectedSan = _currentPuzzle.moves[_puzzleMoveIndex];
-      String? hintFrom;
-      for (final m in moves) {
-        if (m['san'] == expectedSan) {
-          hintFrom = m['from'] as String;
-          break;
-        }
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('💡 Hint: ${_currentPuzzle.hint}${hintFrom != null ? " (Focus on piece at $hintFrom)" : ""}'),
-          backgroundColor: const Color(0xFF141A1F),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  void _revealMove() {
-    HapticsService.light();
-    if (_puzzleMoveIndex < _currentPuzzle.moves.length) {
-      final nextSan = _currentPuzzle.moves[_puzzleMoveIndex];
-      final moves = _puzzleChess.moves({'verbose': true});
-      for (final m in moves) {
-        if (m['san'] == nextSan) {
-          setState(() {
-            _arrows = [
-              BoardArrow(from: m['from'] as String, to: m['to'] as String, color: const Color(0xFFF59E0B)),
-            ];
-          });
-          break;
-        }
-      }
-    }
-  }
-
-  void _playSolution() {
-    HapticsService.light();
-    if (_puzzleMoveIndex < _currentPuzzle.moves.length) {
-      final nextSan = _currentPuzzle.moves[_puzzleMoveIndex];
-      _puzzleChess.move(nextSan);
-      _puzzleMoveIndex++;
-      SoundService.playMove();
-      setState(() {
-        _isSolved = _puzzleMoveIndex >= _currentPuzzle.moves.length;
-        _statusMessage = 'Solution played';
-      });
-    }
-  }
-
-  void _startRush(int seconds) {
+  void _startRushMode(PuzzleMode mode) {
     _rushTimer?.cancel();
-    _rushTimeSeconds = seconds;
-    _rushScore = 0;
-    _rushStrikes = 0;
-    _isRushActive = true;
+    final time = mode == PuzzleMode.rush3 ? 180 : 300;
+    setState(() {
+      _mode = mode;
+      _rushScore = 0;
+      _strikes = 0;
+      _timeLeftSec = time;
+      _isRushActive = true;
+    });
     _loadPuzzle(0);
 
-    _rushTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (_rushTimeSeconds > 0) {
-        setState(() => _rushTimeSeconds--);
+    _rushTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_timeLeftSec > 0) {
+        setState(() => _timeLeftSec--);
       } else {
-        _endRush();
+        _endRushMode('Time\'s Up!');
       }
     });
   }
 
-  void _endRush() {
+  void _startSurvivalMode() {
     _rushTimer?.cancel();
-    _isRushActive = false;
-    SoundService.playVictory();
-    HapticsService.vibrate();
+    setState(() {
+      _mode = PuzzleMode.survival;
+      _rushScore = 0;
+      _strikes = 0;
+      _isRushActive = true;
+    });
+    _loadPuzzle(0);
+  }
+
+  void _endRushMode(String reason) {
+    _rushTimer?.cancel();
+    setState(() => _isRushActive = false);
 
     final stats = StorageService.loadStats();
     if (_rushScore > stats.puzzleRushBest) {
@@ -262,22 +114,22 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF141A1F),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFF222F38))),
-        title: const Text('⚡ Puzzle Rush Complete!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF18181B),
+        title: Text(reason, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Score: $_rushScore Puzzles Solved', style: const TextStyle(color: Color(0xFF10B981), fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Strikes: $_rushStrikes / 3', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+            const Text('Your Score:', style: TextStyle(color: Color(0xFFA1A1AA))),
+            const SizedBox(height: 8),
+            Text('$_rushScore', style: const TextStyle(color: Color(0xFF10B981), fontSize: 36, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
-              setState(() => _activeMode = PuzzleMode.practice);
+              Navigator.of(ctx).pop();
+              setState(() => _mode = PuzzleMode.practice);
+              _loadPuzzle(0);
             },
             child: const Text('Back to Practice', style: TextStyle(color: Color(0xFF10B981))),
           ),
@@ -286,544 +138,230 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     );
   }
 
-  void _filterByTheme(String theme) {
-    HapticsService.light();
-    final filtered = PUZZLES_DATABASE.where((p) => p.theme.toLowerCase() == theme.toLowerCase()).toList();
-    setState(() {
-      _activePuzzlesList = filtered.isNotEmpty ? filtered : List.from(PUZZLES_DATABASE);
-      _loadPuzzle(0);
-    });
+  void _onPlayerMove(String from, String to, String? promotion) {
+    if (_isSolved || _isFailed) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🎯 Filtered by $theme (${_activePuzzlesList.length} puzzles)'),
-        backgroundColor: const Color(0xFF141A1F),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
+    final p = PUZZLES_DATABASE[_currentPuzzleIndex];
+    final expectedSan = p.moves[_moveStep];
+    final playedSan = _game.getHistory().last.toString();
 
-  void _showThemesModal() {
-    final themes = ['Fork', 'Pin', 'Mate', 'Endgame', 'Discovery', 'Skewer'];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF141A1F),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Select Tactical Theme', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ActionChip(
-                  label: const Text('All Themes'),
-                  backgroundColor: const Color(0xFF222F38),
-                  labelStyle: const TextStyle(color: Colors.white),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    setState(() {
-                      _activePuzzlesList = List.from(PUZZLES_DATABASE);
-                      _loadPuzzle(0);
-                    });
-                  },
-                ),
-                ...themes.map((t) => ActionChip(
-                      label: Text(t),
-                      backgroundColor: const Color(0xFF222F38),
-                      labelStyle: const TextStyle(color: Colors.white),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _filterByTheme(t);
-                      },
-                    )),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    if (playedSan == expectedSan) {
+      // Correct Move
+      _lastMoveFrom = from;
+      _lastMoveTo = to;
+      SoundService.playMove();
+      HapticsService.light();
+
+      final nextStep = _moveStep + 1;
+      if (nextStep >= p.moves.length) {
+        // Solved!
+        setState(() {
+          _isSolved = true;
+          _rushScore++;
+        });
+        SoundService.playVictory();
+        HapticsService.vibrate();
+
+        // Update stats
+        final stats = StorageService.loadStats();
+        stats.puzzlesSolved++;
+        stats.puzzleRating += 12;
+        StorageService.saveStats(stats);
+
+        if (_mode != PuzzleMode.practice && _isRushActive) {
+          Future.delayed(const Duration(milliseconds: 700), () {
+            if (mounted && _isRushActive) {
+              _loadPuzzle((_currentPuzzleIndex + 1) % PUZZLES_DATABASE.length);
+            }
+          });
+        }
+      } else {
+        // Automatic opponent reply
+        _moveStep = nextStep;
+        final opponentSan = p.moves[_moveStep];
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            _game.move(opponentSan);
+            final oppState = _game.history.last;
+            setState(() {
+              _lastMoveFrom = oppState.move.fromAlgebraic;
+              _lastMoveTo = oppState.move.toAlgebraic;
+              _moveStep++;
+            });
+            SoundService.playMove();
+            HapticsService.light();
+          }
+        });
+      }
+    } else {
+      // Incorrect Move
+      SoundService.playError();
+      HapticsService.heavy();
+      _game.undo();
+
+      if (_mode == PuzzleMode.survival) {
+        setState(() => _strikes++);
+        if (_strikes >= 3) {
+          _endRushMode('3 Strikes — Game Over!');
+          return;
+        }
+      }
+
+      setState(() {
+        _isFailed = true;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final stats = StorageService.loadStats();
+    final p = PUZZLES_DATABASE[_currentPuzzleIndex];
+    final isFlipped = p.playerColor == 'b';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF090D0E),
+      backgroundColor: const Color(0xFF09090B),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('🧩 Tactical Puzzles', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Top Bar: Stylized Puzzle Piece Logo + Title + Streak & Rating
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          children: [
+            // Mode Selectors
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: const Color(0xFF18181B),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withAlpha(40),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.extension, color: Color(0xFF10B981), size: 22),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              Text('Puzzles', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                              Text('Sharpen your tactics. Solve. Improve.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  _buildModeChip('Practice', PuzzleMode.practice, () {
+                    _rushTimer?.cancel();
+                    setState(() {
+                      _mode = PuzzleMode.practice;
+                      _isRushActive = false;
+                    });
+                    _loadPuzzle(_currentPuzzleIndex);
+                  }),
+                  _buildModeChip('3m Rush', PuzzleMode.rush3, () => _startRushMode(PuzzleMode.rush3)),
+                  _buildModeChip('5m Rush', PuzzleMode.rush5, () => _startRushMode(PuzzleMode.rush5)),
+                  _buildModeChip('Survival', PuzzleMode.survival, _startSurvivalMode),
+                ],
+              ),
+            ),
+
+            // Rush / Survival Status bar
+            if (_mode != PuzzleMode.practice)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                color: const Color(0xFF27272A),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Score: $_rushScore', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 14)),
+                    if (_mode == PuzzleMode.rush3 || _mode == PuzzleMode.rush5)
+                      Text(
+                        '⏱️ ${_timeLeftSec ~/ 60}:${(_timeLeftSec % 60).toString().padLeft(2, "0")}',
+                        style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    if (_mode == PuzzleMode.survival)
+                      Row(
+                        children: [
+                          const Text('Strikes: ', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                          for (int s = 0; s < 3; s++)
+                            Icon(Icons.close, size: 16, color: s < _strikes ? const Color(0xFFEF4444) : const Color(0xFF52525B)),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+
+            // Center Board
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: ChessBoardWidget(
+                    game: _game,
+                    flipped: isFlipped,
+                    boardTheme: widget.settings.boardTheme,
+                    pieceTheme: widget.settings.pieceTheme,
+                    lastMoveFrom: _lastMoveFrom,
+                    lastMoveTo: _lastMoveTo,
+                    onMove: _onPlayerMove,
                   ),
-                  const SizedBox(width: 8),
+                ),
+              ),
+            ),
+
+            // Feedback and Controls
+            Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF27272A)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
                     children: [
-                      // Streak badge
-                      Column(
-                        children: [
-                          Row(
-                            children: [
-                              const Text('🔥', style: TextStyle(fontSize: 13)),
-                              const SizedBox(width: 2),
-                              Text('${stats.winStreak * 2}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const Text('Day Streak', style: TextStyle(color: Color(0xFF64748B), fontSize: 8)),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFF3B82F6).withAlpha(40), borderRadius: BorderRadius.circular(6)),
+                        child: Text(p.theme, style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                      const SizedBox(width: 12),
-                      // Rating badge
-                      Column(
-                        children: [
-                          Row(
-                            children: [
-                              const Text('🏆', style: TextStyle(fontSize: 13)),
-                              const SizedBox(width: 2),
-                              Text('${stats.rating}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const Text('Rating', style: TextStyle(color: Color(0xFF64748B), fontSize: 8)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // 2. Mode Selector Pills: Practice, 3m Rush, 5m Rush, Survival, Themes
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildModePill(PuzzleMode.practice, '🎯 Practice', Icons.gps_fixed),
-                    _buildModePill(PuzzleMode.rush3m, '⚡ 3m Rush', Icons.flash_on),
-                    _buildModePill(PuzzleMode.rush5m, '⚡ 5m Rush', Icons.flash_on),
-                    _buildModePill(PuzzleMode.survival, '🛡️ Survival', Icons.shield),
-                    _buildModePill(PuzzleMode.themes, '🔲 Themes', Icons.grid_view),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Timed Rush Status Strip if active
-              if (_isRushActive) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E2830),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF10B981)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.timer, color: Color(0xFF10B981), size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${(_rushTimeSeconds ~/ 60).toString().padLeft(2, '0')}:${(_rushTimeSeconds % 60).toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              color: _rushTimeSeconds < 30 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text('Solved: $_rushScore', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      Row(
-                        children: [
-                          Text(_rushStrikes >= 1 ? '❌' : '⚪', style: const TextStyle(fontSize: 12)),
-                          Text(_rushStrikes >= 2 ? '❌' : '⚪', style: const TextStyle(fontSize: 12)),
-                          Text(_rushStrikes >= 3 ? '❌' : '⚪', style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // 3. Active Tactical Puzzle Card (Left Info & Right Chessboard)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF141A1F),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF222F38)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Column: Tag, White to move, solve to gain, action buttons
-                        SizedBox(
-                          width: 110,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF38BDF8).withAlpha(40),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _currentPuzzle.theme,
-                                      style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 9, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text('• ${_currentPuzzle.rating}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 9)),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _currentPuzzle.playerColor == 'w' ? 'White to move' : 'Black to move',
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 1),
-                              const Text('Find the winning move.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 9)),
-                              const SizedBox(height: 8),
-                              const Text('Solve to gain', style: TextStyle(color: Color(0xFF64748B), fontSize: 8)),
-                              Row(
-                                children: const [
-                                  Text('👑', style: TextStyle(fontSize: 11)),
-                                  SizedBox(width: 4),
-                                  Text('10 pts', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              // Action buttons
-                              _buildActionButton(Icons.lightbulb_outline, 'Hint', _showHint),
-                              const SizedBox(height: 5),
-                              _buildActionButton(Icons.visibility_outlined, 'Reveal', _revealMove),
-                              const SizedBox(height: 5),
-                              _buildActionButton(Icons.play_arrow_outlined, 'Solution', _playSolution),
-                            ],
-                          ),
+                      const SizedBox(width: 8),
+                      Text('${p.rating} Rating', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12)),
+                      const Spacer(),
+                      if (_mode == PuzzleMode.practice) ...[
+                        TextButton.icon(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          icon: const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFF59E0B)),
+                          label: const Text('Hint', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
+                          onPressed: () => setState(() => _showHint = true),
                         ),
                         const SizedBox(width: 8),
-                        // Right Side: High-fidelity Chessboard
-                        Expanded(
-                          child: AspectRatio(
-                            aspectRatio: 1.0,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: ChessBoardWidget(
-                                game: _puzzleChess,
-                                flipped: _currentPuzzle.playerColor == 'b',
-                                boardTheme: widget.settings.boardTheme,
-                                pieceTheme: widget.settings.pieceTheme,
-                                lastMoveFrom: _lastMoveFrom,
-                                lastMoveTo: _lastMoveTo,
-                                arrows: _arrows,
-                                onMove: _onPlayerMove,
-                              ),
-                            ),
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward, size: 20, color: Colors.white),
+                          onPressed: () => _loadPuzzle((_currentPuzzleIndex + 1) % PUZZLES_DATABASE.length),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Navigation / Result banner
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton.icon(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                          icon: const Icon(Icons.chevron_left, size: 16, color: Color(0xFF94A3B8)),
-                          label: const Text('Prev', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                          onPressed: _currentPuzzleIndex > 0 ? () => setState(() => _loadPuzzle(_currentPuzzleIndex - 1)) : null,
-                        ),
-                        Text(
-                          'Puzzle ${_currentPuzzleIndex + 1} of ${_activePuzzlesList.length}',
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
-                        ),
-                        TextButton.icon(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                          icon: const Icon(Icons.chevron_right, size: 16, color: Color(0xFF10B981)),
-                          label: const Text('Next', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
-                          onPressed: () => setState(() => _loadPuzzle(_currentPuzzleIndex + 1)),
-                        ),
-                      ],
-                    ),
-                    if (_statusMessage != null) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: _isSolved ? const Color(0xFF10B981).withAlpha(30) : const Color(0xFFEF4444).withAlpha(30),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _statusMessage!,
-                          style: TextStyle(
-                            color: _isSolved ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 4. Your Puzzle Stats Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('Your Puzzle Stats', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('View All →', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _buildStatCard('Rating', '${stats.puzzleRating}', '+18', Icons.gps_fixed, const Color(0xFF10B981)),
-                  const SizedBox(width: 8),
-                  _buildStatCard('Solved', '${stats.puzzlesSolved}', 'This month', Icons.bar_chart, const Color(0xFFA855F7)),
-                  const SizedBox(width: 8),
-                  _buildStatCard('Accuracy', '81%', 'Nice!', Icons.radar, const Color(0xFFF59E0B)),
-                  const SizedBox(width: 8),
-                  _buildStatCard('Avg Time', '00:28', 'Seconds', Icons.schedule, const Color(0xFF38BDF8)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // 5. Puzzle Sets Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('Puzzle Sets', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('View All →', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _buildSetCard('Daily Puzzle', 'A new puzzle every day', 'Solved', Icons.calendar_today, const Color(0xFF10B981), isSolved: true, onTap: () {
-                    _loadPuzzle(0);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Loaded Daily Puzzle!')));
-                  }),
-                  const SizedBox(width: 8),
-                  _buildSetCard('Tactical Themes', 'Pins, forks, skewers', '1234 puzzles', Icons.sports_kabaddi, const Color(0xFFA855F7), onTap: _showThemesModal),
-                  const SizedBox(width: 8),
-                  _buildSetCard('Mate in X', 'Find the forced mate', '856 puzzles', Icons.workspace_premium, const Color(0xFFF59E0B), onTap: () => _filterByTheme('Fork')),
-                  const SizedBox(width: 8),
-                  _buildSetCard('Endgame', 'Test your technique', '632 puzzles', Icons.shield, const Color(0xFF38BDF8), onTap: () => _filterByTheme('Fork')),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // 6. Today's Challenge Card
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF141A1F),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF222F38)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: const Color(0xFF10B981).withAlpha(30), shape: BoxShape.circle),
-                      child: const Icon(Icons.gps_fixed, color: Color(0xFF10B981), size: 22),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _isSolved
+                        ? '🎉 Solved! ${p.coachExplanation}'
+                        : (_isFailed ? '❌ That wasn\'t it. Try again!' : (_showHint ? '💡 Hint: ${p.hint}' : p.description)),
+                    style: TextStyle(
+                      color: _isSolved ? const Color(0xFF10B981) : (_isFailed ? const Color(0xFFEF4444) : Colors.white),
+                      fontSize: 13,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Today\'s Challenge', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 2),
-                          const Text('Solve 5 puzzles with 80% accuracy', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: _todayChallengeCount / 5.0,
-                                  backgroundColor: const Color(0xFF222F38),
-                                  color: const Color(0xFF10B981),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text('$_todayChallengeCount / 5', style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      children: [
-                        const Text('Reward', style: TextStyle(color: Color(0xFF64748B), fontSize: 10)),
-                        const SizedBox(height: 2),
-                        Text(_todayChallengeCount >= 5 ? 'CLAIMED 🎉' : '👑 25', style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right, color: Color(0xFF64748B), size: 18),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModePill(PuzzleMode mode, String label, IconData icon) {
-    final isSel = _activeMode == mode;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () {
-          HapticsService.light();
-          setState(() {
-            _activeMode = mode;
-            if (mode == PuzzleMode.rush3m) _startRush(180);
-            if (mode == PuzzleMode.rush5m) _startRush(300);
-            if (mode == PuzzleMode.themes) _showThemesModal();
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSel ? const Color(0xFF10B981).withAlpha(40) : const Color(0xFF141A1F),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isSel ? const Color(0xFF10B981) : const Color(0xFF222F38)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSel ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-              fontSize: 12,
-              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildModeChip(String label, PuzzleMode mode, VoidCallback onTap) {
+    final isSel = _mode == mode;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF222F38),
+          color: isSel ? const Color(0xFF10B981) : const Color(0xFF27272A),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, String val, String sub, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF141A1F),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF222F38)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 16),
-            const SizedBox(height: 4),
-            Text(val, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(sub, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold), maxLines: 1),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSetCard(String title, String sub, String count, IconData icon, Color color, {bool isSolved = false, VoidCallback? onTap}) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticsService.light();
-          onTap?.call();
-        },
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141A1F),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSolved ? const Color(0xFF10B981) : const Color(0xFF222F38)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: color.withAlpha(30), shape: BoxShape.circle),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(height: 6),
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(count, style: TextStyle(color: isSolved ? const Color(0xFF10B981) : const Color(0xFF64748B), fontSize: 9), maxLines: 1),
-            ],
-          ),
+        child: Text(
+          label,
+          style: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA), fontWeight: isSel ? FontWeight.bold : FontWeight.normal, fontSize: 12),
         ),
       ),
     );

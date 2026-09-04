@@ -4,12 +4,11 @@ import 'services/haptics_service.dart';
 import 'services/notification_service.dart';
 import 'services/sound_service.dart';
 import 'services/storage_service.dart';
-import 'ui/home/home_screen.dart';
 import 'ui/play/play_screen.dart';
-import 'ui/puzzles/puzzles_screen.dart';
-import 'ui/learn/learn_screen.dart';
 import 'ui/analysis/analysis_screen.dart';
-import 'ui/profile/profile_screen.dart';
+import 'ui/puzzles/puzzles_screen.dart';
+import 'ui/endgames/endgames_screen.dart';
+import 'ui/openings/openings_screen.dart';
 import 'ui/tools/tools_screen.dart';
 
 void main() async {
@@ -25,11 +24,7 @@ void main() async {
   HapticsService.enabled = settings.hapticsEnabled;
 
   if (settings.dailyNotificationEnabled) {
-    NotificationService.scheduleDailyPracticeNotifications(
-      enabled: true,
-      hour: settings.notificationHour,
-      minute: settings.notificationMinute,
-    );
+    NotificationService.scheduleDailyPracticeNotifications(enabled: true);
   }
 
   runApp(ApexChessApp(initialSettings: settings));
@@ -65,11 +60,11 @@ class _ApexChessAppState extends State<ApexChessApp> {
       title: 'Apex Chess Master',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF090D0E),
+        scaffoldBackgroundColor: const Color(0xFF09090B),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF10B981),
-          secondary: Color(0xFF38BDF8),
-          surface: Color(0xFF141A1F),
+          secondary: Color(0xFF3B82F6),
+          surface: Color(0xFF18181B),
         ),
       ),
       home: MainShell(
@@ -101,77 +96,35 @@ class _MainShellState extends State<MainShell> {
   void _onReviewGameRequested(GameRecord record) {
     setState(() {
       _gameToAnalyze = record;
-      _currentIndex = 4; // Switch to Review tab
+      _currentIndex = 1; // Switch to Analysis tab
     });
-  }
-
-  void _onNavigateTab(int targetIndex) {
-    setState(() {
-      _currentIndex = targetIndex;
-    });
-  }
-
-  void _openSettingsModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF090D0E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (_, controller) => ToolsScreen(
-          settings: widget.settings,
-          onSettingsChanged: widget.onSettingsChanged,
-          onReviewGame: _onReviewGameRequested,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      // 0. Home Dashboard (Screenshot 5)
-      HomeScreen(
-        settings: widget.settings,
-        onNavigateTab: _onNavigateTab,
-        onResumeGame: () => _onNavigateTab(1),
-        onOpenNotifications: _openSettingsModal,
-        onReviewGame: _onReviewGameRequested,
-      ),
-      // 1. Play Hub (Screenshot 4)
       PlayScreen(
         settings: widget.settings,
         onReviewGame: _onReviewGameRequested,
-        onOpenNotifications: _openSettingsModal,
       ),
-      // 2. Tactical Puzzles (Screenshot 1)
-      PuzzlesScreen(
-        settings: widget.settings,
-      ),
-      // 3. Learn Academy (Screenshots 2 & 3)
-      LearnScreen(
-        settings: widget.settings,
-        onPracticeVsAI: (fen, playerColor) {
-          _onNavigateTab(1);
-        },
-      ),
-      // 4. Review & Analysis (Screenshot 3)
       AnalysisScreen(
         key: ValueKey(_gameToAnalyze?.id ?? 'default_analysis'),
         initialGame: _gameToAnalyze,
         settings: widget.settings,
-        onBackToPlay: () => _onNavigateTab(1),
+        onBackToPlay: () => setState(() => _currentIndex = 0),
       ),
-      // 5. Profile (Screenshot 2)
-      ProfileScreen(
+      PuzzlesScreen(
         settings: widget.settings,
-        onOpenSettings: _openSettingsModal,
+      ),
+      EndgamesScreen(
+        settings: widget.settings,
+      ),
+      OpeningsScreen(
+        settings: widget.settings,
+      ),
+      ToolsScreen(
+        settings: widget.settings,
+        onSettingsChanged: widget.onSettingsChanged,
         onReviewGame: _onReviewGameRequested,
       ),
     ];
@@ -181,43 +134,37 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D1217),
-          border: Border(top: BorderSide(color: Color(0xFF1E2830), width: 1.0)),
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: const Color(0xFF18181B),
+          indicatorColor: const Color(0xFF10B981).withAlpha(40),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold);
+            }
+            return const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11);
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: Color(0xFF10B981), size: 22);
+            }
+            return const IconThemeData(color: Color(0xFFA1A1AA), size: 20);
+          }),
         ),
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: Colors.transparent,
-            indicatorColor: const Color(0xFF10B981).withAlpha(40),
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold);
-              }
-              return const TextStyle(color: Color(0xFF64748B), fontSize: 11);
-            }),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return const IconThemeData(color: Color(0xFF10B981), size: 22);
-              }
-              return const IconThemeData(color: Color(0xFF64748B), size: 20);
-            }),
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              HapticsService.light();
-              setState(() => _currentIndex = index);
-            },
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.sports_esports_outlined), selectedIcon: Icon(Icons.sports_esports), label: 'Play'),
-              NavigationDestination(icon: Icon(Icons.extension_outlined), selectedIcon: Icon(Icons.extension), label: 'Puzzles'),
-              NavigationDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: 'Learn'),
-              NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Review'),
-              NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
-            ],
-          ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) {
+            HapticsService.light();
+            setState(() => _currentIndex = index);
+          },
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.sports_esports_outlined), selectedIcon: Icon(Icons.sports_esports), label: 'Play'),
+            NavigationDestination(icon: Icon(Icons.analytics_outlined), selectedIcon: Icon(Icons.analytics), label: 'Review'),
+            NavigationDestination(icon: Icon(Icons.extension_outlined), selectedIcon: Icon(Icons.extension), label: 'Puzzles'),
+            NavigationDestination(icon: Icon(Icons.military_tech_outlined), selectedIcon: Icon(Icons.military_tech), label: 'Endgames'),
+            NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Openings'),
+            NavigationDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune), label: 'Tools'),
+          ],
         ),
       ),
     );

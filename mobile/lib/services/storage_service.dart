@@ -57,8 +57,6 @@ class StorageService {
     return [];
   }
 
-  static List<GameRecord> getRecentGames() => loadGames();
-
   static Future<void> saveGame(GameRecord game) async {
     try {
       final games = loadGames();

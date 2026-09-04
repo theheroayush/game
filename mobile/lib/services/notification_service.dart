@@ -23,18 +23,8 @@ class NotificationService {
     }
   }
 
-  static Future<void> scheduleDailyPracticeNotifications({
-    bool enabled = true,
-    int hour = 20,
-    int minute = 0,
-  }) async {
-    if (!_initialized || !enabled) {
-      try {
-        await _notifications.cancel(id: 101);
-        await _notifications.cancel(id: 102);
-      } catch (_) {}
-      return;
-    }
+  static Future<void> scheduleDailyPracticeNotifications({bool enabled = true}) async {
+    if (!_initialized || !enabled) return;
 
     const androidDetails = AndroidNotificationDetails(
       'apex_chess_daily',
@@ -47,57 +37,23 @@ class NotificationService {
 
     const details = NotificationDetails(android: androidDetails);
 
-    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final amPm = hour >= 12 ? 'PM' : 'AM';
-    final formattedTime = '$displayHour:${minute.toString().padLeft(2, '0')} $amPm';
-
     try {
-      if (hour >= 17) {
-        // Evening notification (e.g. sharp 8:00 PM practice)
-        await _notifications.show(
-          id: 102,
-          title: '🔥 Keep Your Win Streak Alive!',
-          body: 'Sharp $formattedTime alert! Jump into your daily rated match against The Architect on Apex Chess.',
-          notificationDetails: details,
-          payload: 'play',
-        );
-      } else {
-        // Morning notification (e.g. 8:00 AM tactical drill)
-        await _notifications.show(
-          id: 101,
-          title: '♟️ Daily Tactical Drill Ready!',
-          body: 'Sharp $formattedTime alert! Spot today\'s winning combination and boost your rating on Apex Chess.',
-          notificationDetails: details,
-          payload: 'puzzle',
-        );
-      }
-    } catch (_) {}
-  }
-
-  static Future<void> showImmediateTestAlert({int hour = 20, int minute = 0}) async {
-    if (!_initialized) return;
-
-    const androidDetails = AndroidNotificationDetails(
-      'apex_chess_test',
-      'Test Notifications',
-      channelDescription: 'Test notifications for personal schedule verification.',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-    );
-
-    const details = NotificationDetails(android: androidDetails);
-    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final amPm = hour >= 12 ? 'PM' : 'AM';
-    final formattedTime = '$displayHour:${minute.toString().padLeft(2, '0')} $amPm';
-
-    try {
+      // 1. Morning Daily Tactical Puzzle
       await _notifications.show(
-        id: 999,
-        title: '👑 Apex Chess Daily Alert Configured',
-        body: 'Your daily reminder is set for sharp $formattedTime. You will be notified automatically to keep your master progression active!',
+        id: 101,
+        title: '♟️ Daily Tactical Drill Ready!',
+        body: 'Spot today\'s winning combination and boost your puzzle rating on Apex Chess.',
         notificationDetails: details,
-        payload: 'home',
+        payload: 'puzzle',
+      );
+
+      // 2. Evening Practice Reminder
+      await _notifications.show(
+        id: 102,
+        title: '🔥 Keep Your Win Streak Alive!',
+        body: 'Play your daily rated match against The Architect to maintain your master progression.',
+        notificationDetails: details,
+        payload: 'play',
       );
     } catch (_) {}
   }

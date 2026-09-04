@@ -253,78 +253,21 @@ class _ToolsScreenState extends State<ToolsScreen> {
         ),
         const SizedBox(height: 20),
 
-        // 2. Piece Theme Customizer with Live 6-Piece Preview
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('PIECE STYLE & CUSTOMIZATION', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: const Color(0xFF10B981).withAlpha(40), borderRadius: BorderRadius.circular(6)),
-              child: Text(
-                widget.settings.pieceTheme.name.toUpperCase(),
-                style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
+        // 2. Piece Theme
+        const Text('PIECE STYLE', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         const SizedBox(height: 8),
-        // Live preview of pieces in selected theme
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141A1F),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF222F38)),
-          ),
-          child: Column(
-            children: [
-              const Text('Live Theme Preview', style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ChessPieceWidget(type: 'k', color: 'w', theme: widget.settings.pieceTheme, size: 38),
-                  ChessPieceWidget(type: 'q', color: 'w', theme: widget.settings.pieceTheme, size: 38),
-                  ChessPieceWidget(type: 'r', color: 'w', theme: widget.settings.pieceTheme, size: 38),
-                  ChessPieceWidget(type: 'b', color: 'b', theme: widget.settings.pieceTheme, size: 38),
-                  ChessPieceWidget(type: 'n', color: 'b', theme: widget.settings.pieceTheme, size: 38),
-                  ChessPieceWidget(type: 'p', color: 'b', theme: widget.settings.pieceTheme, size: 38),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
-          runSpacing: 8,
           children: PieceThemeId.values.map((p) {
             final isSel = widget.settings.pieceTheme == p;
-            String label;
-            switch (p) {
-              case PieceThemeId.staunton: label = 'Classic Staunton'; break;
-              case PieceThemeId.neoEmerald: label = 'Neo Emerald Cyber'; break;
-              case PieceThemeId.royalGold: label = 'Royal 24K Gold'; break;
-              case PieceThemeId.woodcraft: label = 'Luxury Woodcraft'; break;
-              case PieceThemeId.darkObsidian: label = 'Dark Obsidian'; break;
-              case PieceThemeId.alphaMinimal: label = 'Alpha Minimalist'; break;
-              case PieceThemeId.cyberGlass: label = 'Cyber Hologram'; break;
-            }
-
             return ChoiceChip(
-              label: Text(label),
+              label: Text(p.name.toUpperCase()),
               selected: isSel,
-              selectedColor: const Color(0xFF10B981),
-              backgroundColor: const Color(0xFF141A1F),
-              labelStyle: TextStyle(
-                color: isSel ? Colors.white : const Color(0xFFA1A1AA),
-                fontSize: 12,
-                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-              ),
+              selectedColor: const Color(0xFF3B82F6),
+              backgroundColor: const Color(0xFF18181B),
+              labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFFA1A1AA)),
               onSelected: (sel) {
                 if (sel) {
-                  HapticsService.light();
                   widget.settings.pieceTheme = p;
                   StorageService.saveSettings(widget.settings);
                   widget.onSettingsChanged?.call(widget.settings);
@@ -334,174 +277,46 @@ class _ToolsScreenState extends State<ToolsScreen> {
             );
           }).toList(),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // 3. Audio & Haptics Toggles
         const Text('AUDIO & HAPTICS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF141A1F),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF222F38)),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Sound Effects', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  value: widget.settings.soundEnabled,
-                  activeThumbColor: const Color(0xFF10B981),
-                  onChanged: (v) {
-                    widget.settings.soundEnabled = v;
-                    SoundService.enabled = v;
-                    StorageService.saveSettings(widget.settings);
-                    setState(() {});
-                  },
-                ),
-                const Divider(color: Color(0xFF222F38), height: 1),
-                SwitchListTile(
-                  title: const Text('Haptic Vibration', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: const Text('Tactile response on moves, captures, and checks', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
-                  value: widget.settings.hapticsEnabled,
-                  activeThumbColor: const Color(0xFF10B981),
-                  onChanged: (v) {
-                    widget.settings.hapticsEnabled = v;
-                    HapticsService.enabled = v;
-                    StorageService.saveSettings(widget.settings);
-                    setState(() {});
-                  },
-                ),
-              ],
-            ),
-          ),
+        SwitchListTile(
+          title: const Text('Sound Effects', style: TextStyle(color: Colors.white, fontSize: 14)),
+          value: widget.settings.soundEnabled,
+          activeThumbColor: const Color(0xFF10B981),
+          onChanged: (v) {
+            widget.settings.soundEnabled = v;
+            SoundService.enabled = v;
+            StorageService.saveSettings(widget.settings);
+            setState(() {});
+          },
         ),
-        const SizedBox(height: 22),
-
-        // 4. Daily Practice Notification Manager (8:00 PM Sharp or Custom)
-        const Text('DAILY PRACTICE NOTIFICATIONS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141A1F),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF222F38)),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Daily Training Alerts', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Alerts to keep your win streak alive and turn you into a pro player', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
-                  value: widget.settings.dailyNotificationEnabled,
-                  activeThumbColor: const Color(0xFF10B981),
-                  onChanged: (v) {
-                    widget.settings.dailyNotificationEnabled = v;
-                    NotificationService.scheduleDailyPracticeNotifications(
-                      enabled: v,
-                      hour: widget.settings.notificationHour,
-                      minute: widget.settings.notificationMinute,
-                    );
-                    StorageService.saveSettings(widget.settings);
-                    setState(() {});
-                  },
-                ),
-              if (widget.settings.dailyNotificationEnabled) ...[
-                const Divider(color: Color(0xFF222F38), height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('SCHEDULED TIME', style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${widget.settings.notificationHour == 0 ? 12 : (widget.settings.notificationHour > 12 ? widget.settings.notificationHour - 12 : widget.settings.notificationHour)}:${widget.settings.notificationMinute.toString().padLeft(2, '0')} ${widget.settings.notificationHour >= 12 ? 'PM' : 'AM'} (Sharp)',
-                          style: const TextStyle(color: Color(0xFF10B981), fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF222F38),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: const Icon(Icons.schedule, size: 16),
-                      label: const Text('Change Time', style: TextStyle(fontSize: 12)),
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                            hour: widget.settings.notificationHour,
-                            minute: widget.settings.notificationMinute,
-                          ),
-                        );
-                        if (picked != null) {
-                          widget.settings.notificationHour = picked.hour;
-                          widget.settings.notificationMinute = picked.minute;
-                          NotificationService.scheduleDailyPracticeNotifications(
-                            enabled: true,
-                            hour: picked.hour,
-                            minute: picked.minute,
-                          );
-                          StorageService.saveSettings(widget.settings);
-                          setState(() {});
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Presets
-                Row(
-                  children: [
-                    _buildNotificationPresetChip('8:00 PM Sharp 🌙', 20, 0),
-                    const SizedBox(width: 8),
-                    _buildNotificationPresetChip('8:00 AM Morning ☀️', 8, 0),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                // Send immediate test alert button
-                SizedBox(
-                  width: double.infinity,
-                  height: 38,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF10B981)),
-                      foregroundColor: const Color(0xFF10B981),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    icon: const Icon(Icons.notifications_active_outlined, size: 16),
-                    label: const Text('Send Test Alert Now (Verify Schedule)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () {
-                      HapticsService.light();
-                      NotificationService.showImmediateTestAlert(
-                        hour: widget.settings.notificationHour,
-                        minute: widget.settings.notificationMinute,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('🔔 Notification alert sent to device!'),
-                          duration: Duration(seconds: 2),
-                          backgroundColor: Color(0xFF10B981),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
+        SwitchListTile(
+          title: const Text('Haptic Vibration', style: TextStyle(color: Colors.white, fontSize: 14)),
+          subtitle: const Text('Tactile response on moves, captures and checks', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
+          value: widget.settings.hapticsEnabled,
+          activeColor: const Color(0xFF10B981),
+          onChanged: (v) {
+            widget.settings.hapticsEnabled = v;
+            HapticsService.enabled = v;
+            StorageService.saveSettings(widget.settings);
+            setState(() {});
+          },
         ),
-      ),
-        const SizedBox(height: 22),
+        SwitchListTile(
+          title: const Text('Daily Practice Notifications', style: TextStyle(color: Colors.white, fontSize: 14)),
+          subtitle: const Text('Morning tactics & evening streak reminders', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
+          value: widget.settings.dailyNotificationEnabled,
+          activeColor: const Color(0xFF10B981),
+          onChanged: (v) {
+            widget.settings.dailyNotificationEnabled = v;
+            NotificationService.scheduleDailyPracticeNotifications(enabled: v);
+            StorageService.saveSettings(widget.settings);
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: 20),
 
         // 4. Local Server Cross-Platform Sync
         const Text('LOCAL SERVER SYNCHRONIZATION', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
@@ -554,40 +369,6 @@ class _ToolsScreenState extends State<ToolsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildNotificationPresetChip(String label, int hour, int minute) {
-    final isSel = widget.settings.notificationHour == hour && widget.settings.notificationMinute == minute;
-    return GestureDetector(
-      onTap: () {
-        HapticsService.light();
-        widget.settings.notificationHour = hour;
-        widget.settings.notificationMinute = minute;
-        NotificationService.scheduleDailyPracticeNotifications(
-          enabled: true,
-          hour: hour,
-          minute: minute,
-        );
-        StorageService.saveSettings(widget.settings);
-        setState(() {});
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSel ? const Color(0xFF10B981).withAlpha(40) : const Color(0xFF222F38),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSel ? const Color(0xFF10B981) : Colors.transparent),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSel ? const Color(0xFF10B981) : const Color(0xFFA1A1AA),
-            fontSize: 11,
-            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
     );
   }
 

@@ -427,10 +427,6 @@ class UserStats {
   int puzzlesSolved;
   int puzzleRushBest;
   int gamesPlayed;
-  String name;
-  int globalRankPercentile;
-  int ratingGain;
-  List<bool> weeklyStreak;
   int wins;
   int losses;
   int draws;
@@ -440,38 +436,21 @@ class UserStats {
   String favoriteOpening;
 
   UserStats({
-    this.name = 'Ayush',
-    this.globalRankPercentile = 18,
-    this.ratingGain = 24,
-    List<bool>? weeklyStreak,
-    this.rating = 1742,
-    this.puzzleRating = 1850,
-    this.puzzlesSolved = 142,
-    this.puzzleRushBest = 24,
-    this.gamesPlayed = 86,
-    this.wins = 54,
-    this.losses = 26,
-    this.draws = 6,
-    this.winStreak = 6,
-    this.bestWinStreak = 9,
+    this.rating = 1200,
+    this.puzzleRating = 1200,
+    this.puzzlesSolved = 0,
+    this.puzzleRushBest = 0,
+    this.gamesPlayed = 0,
+    this.wins = 0,
+    this.losses = 0,
+    this.draws = 0,
+    this.winStreak = 0,
+    this.bestWinStreak = 0,
     List<RatingEntry>? ratingHistory,
-    this.favoriteOpening = 'Italian Game',
-  })  : weeklyStreak = weeklyStreak ?? [true, true, true, true, true, true, false],
-        ratingHistory = ratingHistory ?? [
-          RatingEntry(date: '2026-08-28', rating: 1680),
-          RatingEntry(date: '2026-08-29', rating: 1695),
-          RatingEntry(date: '2026-08-30', rating: 1710),
-          RatingEntry(date: '2026-08-31', rating: 1705),
-          RatingEntry(date: '2026-09-01', rating: 1720),
-          RatingEntry(date: '2026-09-02', rating: 1718),
-          RatingEntry(date: '2026-09-03', rating: 1742),
-        ];
+    this.favoriteOpening = 'Sicilian Defense',
+  }) : ratingHistory = ratingHistory ?? [RatingEntry(date: DateTime.now().toIso8601String().split('T')[0], rating: 1200)];
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'globalRankPercentile': globalRankPercentile,
-    'ratingGain': ratingGain,
-    'weeklyStreak': weeklyStreak,
     'rating': rating,
     'puzzleRating': puzzleRating,
     'puzzlesSolved': puzzlesSolved,
@@ -487,27 +466,23 @@ class UserStats {
   };
 
   factory UserStats.fromJson(Map<String, dynamic> json) => UserStats(
-    name: json['name'] as String? ?? 'Ayush',
-    globalRankPercentile: json['globalRankPercentile'] as int? ?? 18,
-    ratingGain: json['ratingGain'] as int? ?? 24,
-    weeklyStreak: (json['weeklyStreak'] as List<dynamic>?)?.map((e) => e as bool).toList(),
-    rating: json['rating'] as int? ?? 1742,
-    puzzleRating: json['puzzleRating'] as int? ?? 1850,
-    puzzlesSolved: json['puzzlesSolved'] as int? ?? 142,
-    puzzleRushBest: json['puzzleRushBest'] as int? ?? 24,
-    gamesPlayed: json['gamesPlayed'] as int? ?? 86,
-    wins: json['wins'] as int? ?? 54,
-    losses: json['losses'] as int? ?? 26,
-    draws: json['draws'] as int? ?? 6,
-    winStreak: json['winStreak'] as int? ?? 6,
-    bestWinStreak: json['bestWinStreak'] as int? ?? 9,
+    rating: json['rating'] as int? ?? 1200,
+    puzzleRating: json['puzzleRating'] as int? ?? 1200,
+    puzzlesSolved: json['puzzlesSolved'] as int? ?? 0,
+    puzzleRushBest: json['puzzleRushBest'] as int? ?? 0,
+    gamesPlayed: json['gamesPlayed'] as int? ?? 0,
+    wins: json['wins'] as int? ?? 0,
+    losses: json['losses'] as int? ?? 0,
+    draws: json['draws'] as int? ?? 0,
+    winStreak: json['winStreak'] as int? ?? 0,
+    bestWinStreak: json['bestWinStreak'] as int? ?? 0,
     ratingHistory: (json['ratingHistory'] as List<dynamic>?)?.map((r) => RatingEntry.fromJson(r as Map<String, dynamic>)).toList(),
-    favoriteOpening: json['favoriteOpening'] as String? ?? 'Italian Game',
+    favoriteOpening: json['favoriteOpening'] as String? ?? 'Sicilian Defense',
   );
 }
 
 enum BoardThemeId { emerald, slate, wood, sapphire, onyx }
-enum PieceThemeId { staunton, neoEmerald, royalGold, woodcraft, darkObsidian, alphaMinimal, cyberGlass }
+enum PieceThemeId { staunton, neo, woodcraft, alpha, minimal }
 
 class BoardThemeColors {
   final BoardThemeId id;
@@ -542,8 +517,6 @@ class AppSettings {
   bool showThreats;
   bool autoQueen;
   bool dailyNotificationEnabled;
-  int notificationHour;
-  int notificationMinute;
   String localServerUrl;
 
   AppSettings({
@@ -559,8 +532,6 @@ class AppSettings {
     this.showThreats = true,
     this.autoQueen = true,
     this.dailyNotificationEnabled = true,
-    this.notificationHour = 20, // 8:00 PM default
-    this.notificationMinute = 0,
     this.localServerUrl = 'http://10.0.2.2:8080',
   });
 
@@ -577,53 +548,30 @@ class AppSettings {
     'showThreats': showThreats,
     'autoQueen': autoQueen,
     'dailyNotificationEnabled': dailyNotificationEnabled,
-    'notificationHour': notificationHour,
-    'notificationMinute': notificationMinute,
     'localServerUrl': localServerUrl,
   };
 
-  factory AppSettings.fromJson(Map<String, dynamic> json) {
-    PieceThemeId pTheme = PieceThemeId.staunton;
-    final pStr = json['pieceTheme'] as String?;
-    if (pStr != null) {
-      if (pStr == 'neo' || pStr == 'neoEmerald') {
-        pTheme = PieceThemeId.neoEmerald;
-      } else if (pStr == 'alpha' || pStr == 'alphaMinimal') {
-        pTheme = PieceThemeId.alphaMinimal;
-      } else if (pStr == 'woodcraft') {
-        pTheme = PieceThemeId.woodcraft;
-      } else if (pStr == 'royalGold') {
-        pTheme = PieceThemeId.royalGold;
-      } else if (pStr == 'darkObsidian') {
-        pTheme = PieceThemeId.darkObsidian;
-      } else if (pStr == 'cyberGlass') {
-        pTheme = PieceThemeId.cyberGlass;
-      } else {
-        pTheme = PieceThemeId.staunton;
-      }
-    }
-
-    return AppSettings(
-      boardTheme: BoardThemeId.values.firstWhere(
-        (b) => b.name == json['boardTheme'],
-        orElse: () => BoardThemeId.emerald,
-      ),
-      pieceTheme: pTheme,
-      soundEnabled: json['soundEnabled'] as bool? ?? true,
-      soundVolume: (json['soundVolume'] as num?)?.toDouble() ?? 0.7,
-      voiceCoachEnabled: json['voiceCoachEnabled'] as bool? ?? false,
-      hapticsEnabled: json['hapticsEnabled'] as bool? ?? true,
-      showCoordinates: json['showCoordinates'] as bool? ?? true,
-      showLegalMoves: json['showLegalMoves'] as bool? ?? true,
-      showLastMove: json['showLastMove'] as bool? ?? true,
-      showThreats: json['showThreats'] as bool? ?? true,
-      autoQueen: json['autoQueen'] as bool? ?? true,
-      dailyNotificationEnabled: json['dailyNotificationEnabled'] as bool? ?? true,
-      notificationHour: json['notificationHour'] as int? ?? 20,
-      notificationMinute: json['notificationMinute'] as int? ?? 0,
-      localServerUrl: json['localServerUrl'] as String? ?? 'http://10.0.2.2:8080',
-    );
-  }
+  factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
+    boardTheme: BoardThemeId.values.firstWhere(
+      (b) => b.name == json['boardTheme'],
+      orElse: () => BoardThemeId.emerald,
+    ),
+    pieceTheme: PieceThemeId.values.firstWhere(
+      (p) => p.name == json['pieceTheme'],
+      orElse: () => PieceThemeId.staunton,
+    ),
+    soundEnabled: json['soundEnabled'] as bool? ?? true,
+    soundVolume: (json['soundVolume'] as num?)?.toDouble() ?? 0.7,
+    voiceCoachEnabled: json['voiceCoachEnabled'] as bool? ?? false,
+    hapticsEnabled: json['hapticsEnabled'] as bool? ?? true,
+    showCoordinates: json['showCoordinates'] as bool? ?? true,
+    showLegalMoves: json['showLegalMoves'] as bool? ?? true,
+    showLastMove: json['showLastMove'] as bool? ?? true,
+    showThreats: json['showThreats'] as bool? ?? true,
+    autoQueen: json['autoQueen'] as bool? ?? true,
+    dailyNotificationEnabled: json['dailyNotificationEnabled'] as bool? ?? true,
+    localServerUrl: json['localServerUrl'] as String? ?? 'http://10.0.2.2:8080',
+  );
 }
 
 class ChessPuzzle {

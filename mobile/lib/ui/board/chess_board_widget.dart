@@ -16,7 +16,6 @@ class ChessBoardWidget extends StatefulWidget {
   final String? lastMoveFrom;
   final String? lastMoveTo;
   final List<BoardArrow> arrows;
-  final bool showCoordinates;
   final Function(String from, String to, String? promotion)? onMove;
   final VoidCallback? onBoardChanged;
 
@@ -30,7 +29,6 @@ class ChessBoardWidget extends StatefulWidget {
     this.lastMoveFrom,
     this.lastMoveTo,
     this.arrows = const [],
-    this.showCoordinates = true,
     this.onMove,
     this.onBoardChanged,
   });
@@ -147,6 +145,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
 
     final moveSuccess = widget.game.move({
       'from': from,
+      'to': to,
       if (promotion != null) 'promotion': promotion,
     });
 
@@ -209,7 +208,6 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                   checkSquare: checkSq,
                   legalSquares: _legalDestinations,
                   arrows: widget.arrows,
-                  showCoordinates: widget.showCoordinates,
                 ),
               ),
 
