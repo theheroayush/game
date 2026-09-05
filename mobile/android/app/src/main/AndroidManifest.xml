@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="apex_chess"
+        android:label="Apex Chess Master"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -107,7 +107,12 @@ class _MainShellState extends State<MainShell> {
     final screens = [
       PlayScreen(
         settings: widget.settings,
+        onSettingsChanged: widget.onSettingsChanged,
         onReviewGame: _onReviewGameRequested,
+        onNavigateTab: (index) {
+          HapticsService.light();
+          setState(() => _currentIndex = index);
+        },
       ),
       AnalysisScreen(
         key: ValueKey(_gameToAnalyze?.id ?? 'default_analysis'),

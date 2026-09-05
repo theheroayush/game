@@ -20,13 +20,17 @@ import 'widgets/move_history_sheet.dart';
 
 class PlayScreen extends StatefulWidget {
   final AppSettings settings;
+  final Function(AppSettings)? onSettingsChanged;
   final Function(GameRecord record)? onReviewGame;
+  final Function(int tabIndex)? onNavigateTab;
   final bool initialInLobby;
 
   const PlayScreen({
     super.key,
     required this.settings,
+    this.onSettingsChanged,
     this.onReviewGame,
+    this.onNavigateTab,
     this.initialInLobby = true,
   });
 
@@ -99,6 +103,27 @@ class _PlayScreenState extends State<PlayScreen> {
     _blackCaptured.clear();
     _materialDifference = 0;
     _evalScore = 0;
+  }
+
+  void _updateBoardTheme(BoardThemeId theme) {
+    setState(() => _boardTheme = theme);
+    widget.settings.boardTheme = theme;
+    StorageService.saveSettings(widget.settings);
+    widget.onSettingsChanged?.call(widget.settings);
+  }
+
+  void _updatePieceTheme(PieceThemeId theme) {
+    setState(() => _pieceTheme = theme);
+    widget.settings.pieceTheme = theme;
+    StorageService.saveSettings(widget.settings);
+    widget.onSettingsChanged?.call(widget.settings);
+  }
+
+  void _updateCoordinates(bool show) {
+    setState(() => _showCoordinates = show);
+    widget.settings.showCoordinates = show;
+    StorageService.saveSettings(widget.settings);
+    widget.onSettingsChanged?.call(widget.settings);
   }
 
   void _startNewGame({
@@ -895,17 +920,26 @@ class _PlayScreenState extends State<PlayScreen> {
             initialTimeControl: _timeControl,
             hasActiveMatch: hasMatch,
             onResumeMatch: () => setState(() => _inLobby = false),
+            currentBoardTheme: _boardTheme,
+            currentPieceTheme: _pieceTheme,
+            showCoordinates: _showCoordinates,
+            onBoardThemeChanged: _updateBoardTheme,
+            onPieceThemeChanged: _updatePieceTheme,
+            onCoordinatesChanged: _updateCoordinates,
+            onNavigateTab: widget.onNavigateTab,
             onStartMatch: ({
               required int difficultyLevel,
               required AIPersonalityId personality,
               required PlayerColor playerColor,
               required TimeControlConfig timeControl,
+              bool? isPassAndPlay,
             }) {
               _startNewGame(
                 difficultyLevel: difficultyLevel,
                 personality: personality,
                 playerColor: playerColor,
                 timeControl: timeControl,
+                isPassAndPlay: isPassAndPlay,
               );
             },
           ),
@@ -952,7 +986,11 @@ class _PlayScreenState extends State<PlayScreen> {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
-            onPressed: () => setState(() => _inLobby = true),
+            tooltip: 'Play Hub',
+            onPressed: () {
+              HapticsService.light();
+              setState(() => _inLobby = true);
+            },
           ),
           const SizedBox(width: 4),
 
