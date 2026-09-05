@@ -115,8 +115,10 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
 
   final whitePawnFiles = List<int>.filled(8, 0);
   final blackPawnFiles = List<int>.filled(8, 0);
+  String? whiteKingSquare;
+  String? blackKingSquare;
 
-  // Scan 64 squares
+  // Scan 64 squares - First pass: Material & structure setup
   for (int rank = 1; rank <= 8; rank++) {
     for (int file = 0; file < 8; file++) {
       final sq = String.fromCharCode('a'.codeUnitAt(0) + file) + rank.toString();
@@ -138,6 +140,12 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
           whiteBishops++;
         } else {
           blackBishops++;
+        }
+      } else if (pType == 'k') {
+        if (isW) {
+          whiteKingSquare = sq;
+        } else {
+          blackKingSquare = sq;
         }
       }
 
@@ -198,10 +206,13 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
         if (isPassed) {
           final advancement = isW ? rank : 9 - rank;
           positionalBonus += advancement * 15;
+          if (isEndgame) {
+            positionalBonus += 25; // Passed pawn is devastating in endgame
+          }
         }
       }
 
-      // 2. Rooks on Open / Semi-Open Files
+      // 2. Rooks on Open / Semi-Open Files & 7th Rank
       if (pType == 'r') {
         final ownPawns = isW ? whitePawnFiles[file] : blackPawnFiles[file];
         final enemyPawns = isW ? blackPawnFiles[file] : whitePawnFiles[file];
@@ -209,6 +220,11 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
           positionalBonus += 30; // Open file
         } else if (ownPawns == 0) {
           positionalBonus += 15; // Semi-open file
+        }
+
+        // Rook on 7th Rank Bonus (+35cp)
+        if ((isW && rank == 7) || (!isW && rank == 2)) {
+          positionalBonus += 35;
         }
       }
 
@@ -227,6 +243,57 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
     }
   }
 
+  // King Safety & Pawn Shelter (Midgame)
+  if (!isEndgame) {
+    // White King Safety
+    if (whiteKingSquare != null) {
+      final wkFile = whiteKingSquare.codeUnitAt(0) - 'a'.codeUnitAt(0);
+      final wkRank = int.parse(whiteKingSquare[1]);
+      if (wkRank == 1 && wkFile >= 5) {
+        // Castled kingside: f2, g2, h2 shield
+        if (whitePawnFiles[5] == 0) whiteScore -= 25;
+        if (whitePawnFiles[6] == 0) whiteScore -= 40;
+        if (whitePawnFiles[7] == 0) whiteScore -= 20;
+        whiteScore += 25; // Castled shelter bonus
+      } else if (wkRank == 1 && wkFile <= 2) {
+        // Castled queenside
+        if (whitePawnFiles[0] == 0) whiteScore -= 20;
+        if (whitePawnFiles[1] == 0) whiteScore -= 35;
+        if (whitePawnFiles[2] == 0) whiteScore -= 25;
+        whiteScore += 25;
+      } else if (wkRank <= 2 && (wkFile == 3 || wkFile == 4)) {
+        // King stuck in the center
+        if (whitePawnFiles[3] == 0 || blackPawnFiles[3] == 0 || whitePawnFiles[4] == 0 || blackPawnFiles[4] == 0) {
+          whiteScore -= 35; // Exposed central file
+        }
+      }
+    }
+
+    // Black King Safety
+    if (blackKingSquare != null) {
+      final bkFile = blackKingSquare.codeUnitAt(0) - 'a'.codeUnitAt(0);
+      final bkRank = int.parse(blackKingSquare[1]);
+      if (bkRank == 8 && bkFile >= 5) {
+        // Castled kingside: f7, g7, h7 shield
+        if (blackPawnFiles[5] == 0) blackScore -= 25;
+        if (blackPawnFiles[6] == 0) blackScore -= 40;
+        if (blackPawnFiles[7] == 0) blackScore -= 20;
+        blackScore += 25;
+      } else if (bkRank == 8 && bkFile <= 2) {
+        // Castled queenside
+        if (blackPawnFiles[0] == 0) blackScore -= 20;
+        if (blackPawnFiles[1] == 0) blackScore -= 35;
+        if (blackPawnFiles[2] == 0) blackScore -= 25;
+        blackScore += 25;
+      } else if (bkRank >= 7 && (bkFile == 3 || bkFile == 4)) {
+        // King stuck in the center
+        if (blackPawnFiles[3] == 0 || whitePawnFiles[3] == 0 || blackPawnFiles[4] == 0 || whitePawnFiles[4] == 0) {
+          blackScore -= 35;
+        }
+      }
+    }
+  }
+
   // Bishop Pair Bonus (+45cp)
   if (whiteBishops >= 2) whiteScore += 45;
   if (blackBishops >= 2) blackScore += 45;
@@ -234,7 +301,6 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   // Personality adjustments
   int personalityMod = 0;
   if (personality == AIPersonalityId.aggressive) {
-    // Nelson Queen attacks & aggressive initiative
     personalityMod += (whiteMaterial > blackMaterial ? 40 : -40);
     if (game.in_check) {
       personalityMod += game.turn == chess.Color.BLACK ? 65 : -65;
@@ -251,41 +317,44 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   return whiteScore - blackScore + personalityMod;
 }
 
-// Quiescence Search with Delta Pruning (exchanges horizon)
+// Quiescence Search with Check Evasion and Exchange Resolution
 int quiescence(
   chess.Chess game,
   int alpha,
   int beta,
   bool isMaximizing, [
-  int depth = 2,
+  int depth = 4,
   AIPersonalityId personality = AIPersonalityId.balanced,
 ]) {
+  if (game.game_over) {
+    return evaluatePosition(game, personality);
+  }
+
   final standPat = evaluatePosition(game, personality);
-  if (depth <= 0 || game.game_over) {
+  if (depth <= 0) {
     return standPat;
   }
 
+  final inCheck = game.in_check;
   const int bigDelta = 925; // Queen value + safety buffer
 
   if (isMaximizing) {
-    if (standPat >= beta) return beta;
-    if (standPat > alpha) alpha = standPat;
-
-    // Delta pruning
-    if (standPat < alpha - bigDelta) {
-      return alpha;
+    if (!inCheck) {
+      if (standPat >= beta) return beta;
+      if (standPat > alpha) alpha = standPat;
+      if (standPat < alpha - bigDelta) return alpha;
     }
 
     final rawMoves = game.moves({'verbose': true});
     final captureMoves = <Map<String, dynamic>>[];
     for (final m in rawMoves) {
       final map = m as Map<String, dynamic>;
-      if (map['captured'] != null || map['flags'].toString().contains('p')) {
+      if (inCheck || map['captured'] != null || map['flags'].toString().contains('p')) {
         captureMoves.add(map);
       }
     }
 
-    if (captureMoves.isEmpty) return standPat;
+    if (captureMoves.isEmpty) return inCheck ? -99999 : standPat;
 
     // MVV-LVA move ordering
     captureMoves.sort((a, b) {
@@ -306,23 +375,22 @@ int quiescence(
     }
     return alpha;
   } else {
-    if (standPat <= alpha) return alpha;
-    if (standPat < beta) beta = standPat;
-
-    if (standPat > beta + bigDelta) {
-      return beta;
+    if (!inCheck) {
+      if (standPat <= alpha) return alpha;
+      if (standPat < beta) beta = standPat;
+      if (standPat > beta + bigDelta) return beta;
     }
 
     final rawMoves = game.moves({'verbose': true});
     final captureMoves = <Map<String, dynamic>>[];
     for (final m in rawMoves) {
       final map = m as Map<String, dynamic>;
-      if (map['captured'] != null || map['flags'].toString().contains('p')) {
+      if (inCheck || map['captured'] != null || map['flags'].toString().contains('p')) {
         captureMoves.add(map);
       }
     }
 
-    if (captureMoves.isEmpty) return standPat;
+    if (captureMoves.isEmpty) return inCheck ? 99999 : standPat;
 
     captureMoves.sort((a, b) {
       final aCaptured = a['captured']?.toString() ?? '';
@@ -347,17 +415,52 @@ int quiescence(
 // Killer Moves Table: 2 killer moves per ply (up to 64 plies)
 final List<List<Map<String, dynamic>?>> _killerMoves = List.generate(64, (_) => [null, null]);
 
+// History Heuristic Table: 64x64 quiet move cutoffs
+final List<List<int>> _historyTable = List.generate(64, (_) => List.filled(64, 0));
+
+enum TTFlag { exact, lowerBound, upperBound }
+
+class TTEntry {
+  final int depth;
+  final int score;
+  final TTFlag flag;
+  final String? bestFrom;
+  final String? bestTo;
+  final String? bestPromo;
+
+  const TTEntry({
+    required this.depth,
+    required this.score,
+    required this.flag,
+    this.bestFrom,
+    this.bestTo,
+    this.bestPromo,
+  });
+}
+
 // Transposition Table Cache
-final Map<String, Map<String, dynamic>> _ttCache = {};
+final Map<String, TTEntry> _ttCache = {};
 
 void resetEngineSearchState() {
   for (int i = 0; i < 64; i++) {
     _killerMoves[i][0] = null;
     _killerMoves[i][1] = null;
   }
-  if (_ttCache.length > 20000) {
+  for (int i = 0; i < 64; i++) {
+    for (int j = 0; j < 64; j++) {
+      _historyTable[i][j] = 0;
+    }
+  }
+  if (_ttCache.length > 80000) {
     _ttCache.clear();
   }
+}
+
+int _squareToIdx(String sq) {
+  if (sq.length < 2) return 0;
+  final f = sq.codeUnitAt(0) - 97;
+  final r = int.tryParse(sq[1]) ?? 1;
+  return ((r - 1) * 8 + f).clamp(0, 63);
 }
 
 class ScoredMove {
@@ -379,7 +482,21 @@ class MinimaxResult {
   });
 }
 
-// Minimax with Alpha-Beta, Killer Moves & Quiescence
+class SearchResult {
+  final int score;
+  final Map<String, dynamic>? bestMove;
+  final int depthReached;
+  final List<ScoredMove> rootMoves;
+
+  const SearchResult({
+    required this.score,
+    this.bestMove,
+    required this.depthReached,
+    required this.rootMoves,
+  });
+}
+
+// Minimax with Alpha-Beta, Transposition Table, Killer Moves, History Heuristic & Quiescence
 MinimaxResult minimax(
   chess.Chess game,
   int depth,
@@ -397,7 +514,7 @@ MinimaxResult minimax(
 
   if (depth <= 0) {
     if (useQuiescence) {
-      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, 2, personality));
+      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, 4, personality));
     }
     return MinimaxResult(score: evaluatePosition(game, personality));
   }
@@ -408,8 +525,14 @@ MinimaxResult minimax(
 
   final fen = game.fen;
   final cached = _ttCache[fen];
-  if (cached != null && (cached['depth'] as int) >= depth && deadline == null) {
-    return MinimaxResult(score: cached['score'] as int);
+  if (cached != null && cached.depth >= depth) {
+    if (cached.flag == TTFlag.exact) {
+      return MinimaxResult(score: cached.score);
+    } else if (cached.flag == TTFlag.lowerBound && cached.score >= beta) {
+      return MinimaxResult(score: cached.score);
+    } else if (cached.flag == TTFlag.upperBound && cached.score <= alpha) {
+      return MinimaxResult(score: cached.score);
+    }
   }
 
   final rawMoves = game.moves({'verbose': true});
@@ -419,12 +542,25 @@ MinimaxResult minimax(
 
   final moves = rawMoves.map((m) => m as Map<String, dynamic>).toList();
 
-  // Move Ordering: Captures -> Killer 1 -> Killer 2 -> Checks -> Quiet
+  // Move Ordering:
+  // 1. Hash Move (from TT) (+30000)
+  // 2. MVV-LVA Captures (+10000)
+  // 3. Killer Moves (+8000, +7000)
+  // 4. History Heuristic (+1 to +5000)
+  // 5. Tactical Checks (+500)
+  final hashFrom = cached?.bestFrom;
+  final hashTo = cached?.bestTo;
   final currentKillers = ply < 64 ? _killerMoves[ply] : [null, null];
+
   moves.sort((a, b) {
     int aScore = 0;
     int bScore = 0;
 
+    // 1. Hash Move from Transposition Table
+    if (hashFrom != null && a['from'] == hashFrom && a['to'] == hashTo) aScore += 30000;
+    if (hashFrom != null && b['from'] == hashFrom && b['to'] == hashTo) bScore += 30000;
+
+    // 2. Captures MVV-LVA
     final aCaptured = a['captured']?.toString() ?? '';
     final bCaptured = b['captured']?.toString() ?? '';
     if (aCaptured.isNotEmpty) aScore += (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[a['piece']?.toString() ?? ''] ?? 0) + 10000;
@@ -433,12 +569,26 @@ MinimaxResult minimax(
     if (a['flags'].toString().contains('p')) aScore += 9000;
     if (b['flags'].toString().contains('p')) bScore += 9000;
 
+    // 3. Killer moves
     if (currentKillers[0] != null && a['from'] == currentKillers[0]!['from'] && a['to'] == currentKillers[0]!['to']) aScore += 8000;
     if (currentKillers[0] != null && b['from'] == currentKillers[0]!['from'] && b['to'] == currentKillers[0]!['to']) bScore += 8000;
 
     if (currentKillers[1] != null && a['from'] == currentKillers[1]!['from'] && a['to'] == currentKillers[1]!['to']) aScore += 7000;
     if (currentKillers[1] != null && b['from'] == currentKillers[1]!['from'] && b['to'] == currentKillers[1]!['to']) bScore += 7000;
 
+    // 4. History Heuristic for quiet moves
+    if (aCaptured.isEmpty) {
+      final aFrom = _squareToIdx(a['from'].toString());
+      final aTo = _squareToIdx(a['to'].toString());
+      aScore += min(_historyTable[aFrom][aTo], 5000);
+    }
+    if (bCaptured.isEmpty) {
+      final bFrom = _squareToIdx(b['from'].toString());
+      final bTo = _squareToIdx(b['to'].toString());
+      bScore += min(_historyTable[bFrom][bTo], 5000);
+    }
+
+    // 5. Tactical Checks
     final aSan = a['san']?.toString() ?? '';
     final bSan = b['san']?.toString() ?? '';
     if (aSan.contains('+') || aSan.contains('#')) aScore += 500;
@@ -448,6 +598,8 @@ MinimaxResult minimax(
   });
 
   Map<String, dynamic>? bestMove = moves.first;
+  final int initialAlpha = alpha;
+  final int initialBeta = beta;
 
   if (isMaximizing) {
     int maxEval = -999999;
@@ -474,7 +626,7 @@ MinimaxResult minimax(
       );
       game.undo();
 
-      if (evalResult.interrupted && evalResult.bestMove == null) {
+      if (evalResult.interrupted) {
         return MinimaxResult(score: maxEval, bestMove: bestMove, interrupted: true);
       }
 
@@ -484,18 +636,39 @@ MinimaxResult minimax(
       }
       alpha = max(alpha, evalResult.score);
       if (beta <= alpha) {
-        // Record Killer Move on quiet beta cutoff
-        if (move['captured'] == null && ply < 64) {
-          _killerMoves[ply][1] = _killerMoves[ply][0];
-          _killerMoves[ply][0] = move;
+        // Record Killer Move and update History Heuristic on quiet beta cutoff
+        if (move['captured'] == null) {
+          if (ply < 64) {
+            _killerMoves[ply][1] = _killerMoves[ply][0];
+            _killerMoves[ply][0] = move;
+          }
+          final fIdx = _squareToIdx(move['from'].toString());
+          final tIdx = _squareToIdx(move['to'].toString());
+          _historyTable[fIdx][tIdx] += depth * depth;
         }
         break; // Beta Cutoff
       }
     }
 
-    if (_ttCache.length < 60000 && deadline == null) {
-      _ttCache[fen] = {'score': maxEval, 'depth': depth};
+    // Store entry in Transposition Table
+    TTFlag flag = TTFlag.exact;
+    if (maxEval <= initialAlpha) {
+      flag = TTFlag.upperBound;
+    } else if (maxEval >= beta) {
+      flag = TTFlag.lowerBound;
     }
+
+    if (_ttCache.length < 100000) {
+      _ttCache[fen] = TTEntry(
+        depth: depth,
+        score: maxEval,
+        flag: flag,
+        bestFrom: bestMove?['from'] as String?,
+        bestTo: bestMove?['to'] as String?,
+        bestPromo: bestMove?['promotion']?.toString(),
+      );
+    }
+
     return MinimaxResult(score: maxEval, bestMove: bestMove);
   } else {
     int minEval = 999999;
@@ -522,7 +695,7 @@ MinimaxResult minimax(
       );
       game.undo();
 
-      if (evalResult.interrupted && evalResult.bestMove == null) {
+      if (evalResult.interrupted) {
         return MinimaxResult(score: minEval, bestMove: bestMove, interrupted: true);
       }
 
@@ -532,33 +705,39 @@ MinimaxResult minimax(
       }
       beta = min(beta, evalResult.score);
       if (beta <= alpha) {
-        if (move['captured'] == null && ply < 64) {
-          _killerMoves[ply][1] = _killerMoves[ply][0];
-          _killerMoves[ply][0] = move;
+        if (move['captured'] == null) {
+          if (ply < 64) {
+            _killerMoves[ply][1] = _killerMoves[ply][0];
+            _killerMoves[ply][0] = move;
+          }
+          final fIdx = _squareToIdx(move['from'].toString());
+          final tIdx = _squareToIdx(move['to'].toString());
+          _historyTable[fIdx][tIdx] += depth * depth;
         }
         break; // Alpha Cutoff
       }
     }
 
-    if (_ttCache.length < 60000 && deadline == null) {
-      _ttCache[fen] = {'score': minEval, 'depth': depth};
+    TTFlag flag = TTFlag.exact;
+    if (minEval >= initialBeta) {
+      flag = TTFlag.lowerBound;
+    } else if (minEval <= alpha) {
+      flag = TTFlag.upperBound;
     }
+
+    if (_ttCache.length < 100000) {
+      _ttCache[fen] = TTEntry(
+        depth: depth,
+        score: minEval,
+        flag: flag,
+        bestFrom: bestMove?['from'] as String?,
+        bestTo: bestMove?['to'] as String?,
+        bestPromo: bestMove?['promotion']?.toString(),
+      );
+    }
+
     return MinimaxResult(score: minEval, bestMove: bestMove);
   }
-}
-
-class SearchResult {
-  final int score;
-  final Map<String, dynamic>? bestMove;
-  final int depthReached;
-  final List<ScoredMove> rootMoves;
-
-  const SearchResult({
-    required this.score,
-    this.bestMove,
-    required this.depthReached,
-    this.rootMoves = const [],
-  });
 }
 
 // Iterative Deepening Search with Time Budgeting and Committed Depth Buffer
@@ -588,15 +767,15 @@ SearchResult searchBestMoveIterative(
   int completedDepth = 1;
   List<ScoredMove> completedRootMoves = [];
 
-  // Reset killer moves for fresh search
+  // Reset killer moves & history for fresh search
   resetEngineSearchState();
 
   final currentOrderedMoves = List<Map<String, dynamic>>.from(rootCandidates);
 
   for (int d = 1; d <= maxDepth; d++) {
     final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
-    // Predictive time cutoff: if more than 70% of budget has elapsed and d > 2, do not start deeper iteration
-    if (d > 2 && elapsed >= maxTimeMs * 0.70) {
+    // Predictive time cutoff: if more than 75% of budget has elapsed and d > 2, do not start deeper iteration
+    if (d > 2 && elapsed >= maxTimeMs * 0.75) {
       break;
     }
 

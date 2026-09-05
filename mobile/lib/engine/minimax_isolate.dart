@@ -77,7 +77,7 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
     // For novice bots (Level 1 Jimmy), 50% chance to leave book early for natural beginner play
     final useBook = diff.level > 1 || Random().nextDouble() < 0.45;
     if (useBook) {
-      final opening = findOpeningByMoves(request.moveSans);
+      final opening = findBookOpeningForMoves(request.moveSans);
       if (opening != null && request.moveSans.length < opening.moves.length) {
         final nextSan = opening.moves[request.moveSans.length];
         try {
@@ -193,11 +193,13 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
     }
   }
 
+  final chosenMove = chosen;
+
   return AIMoveResponse(
-    from: chosen['from'] as String,
-    to: chosen['to'] as String,
-    promotion: _formatPromotion(chosen['promotion']),
-    san: chosen['san'] as String,
+    from: chosenMove['from'] as String,
+    to: chosenMove['to'] as String,
+    promotion: _formatPromotion(chosenMove['promotion']),
+    san: chosenMove['san'] as String,
     score: searchResult.score,
   );
 }
