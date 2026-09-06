@@ -194,11 +194,20 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
   }
 
   final chosenMove = chosen;
+  String? promo = _formatPromotion(chosenMove['promotion']);
+  final piece = game.get(chosenMove['from'].toString());
+  final toSq = chosenMove['to'].toString();
+  if (promo == null && piece?.type == chess.PieceType.PAWN) {
+    if ((piece?.color == chess.Color.WHITE && toSq.endsWith('8')) ||
+        (piece?.color == chess.Color.BLACK && toSq.endsWith('1'))) {
+      promo = 'q';
+    }
+  }
 
   return AIMoveResponse(
     from: chosenMove['from'] as String,
     to: chosenMove['to'] as String,
-    promotion: _formatPromotion(chosenMove['promotion']),
+    promotion: promo,
     san: chosenMove['san'] as String,
     score: searchResult.score,
   );

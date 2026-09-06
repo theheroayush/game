@@ -39,10 +39,74 @@ class ChessBoardWidget extends StatefulWidget {
   State<ChessBoardWidget> createState() => _ChessBoardWidgetState();
 }
 
-class _ChessBoardWidgetState extends State<ChessBoardWidget> {
+class _ChessBoardWidgetState extends State<ChessBoardWidget> with SingleTickerProviderStateMixin {
   String? _selectedSquare;
   List<String> _legalDestinations = [];
   List<String> _legalCaptures = [];
+
+  late final AnimationController _moveAnimController;
+  late final Animation<double> _moveCurveAnim;
+  String? _animFromSquare;
+  String? _animToSquare;
+  chess.Piece? _animPiece;
+
+  @override
+  void initState() {
+    super.initState();
+    _moveAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _moveCurveAnim = CurvedAnimation(
+      parent: _moveAnimController,
+      curve: Curves.easeOutCubic,
+    );
+    _moveAnimController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) {
+          setState(() {
+            _animFromSquare = null;
+            _animToSquare = null;
+            _animPiece = null;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _moveAnimController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ChessBoardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.lastMoveFrom != null &&
+        widget.lastMoveTo != null &&
+        (widget.lastMoveFrom != oldWidget.lastMoveFrom ||
+         widget.lastMoveTo != oldWidget.lastMoveTo)) {
+      _startMoveAnimation(widget.lastMoveFrom!, widget.lastMoveTo!);
+    }
+  }
+
+  void _startMoveAnimation(String from, String to) {
+    if (from == to) return;
+    if (_animFromSquare == from && _animToSquare == to && _moveAnimController.isAnimating) {
+      return;
+    }
+    final piece = widget.game.get(to);
+    if (piece == null) return;
+
+    _moveAnimController.stop();
+    setState(() {
+      _animFromSquare = from;
+      _animToSquare = to;
+      _animPiece = piece;
+    });
+    _moveAnimController.forward(from: 0.0);
+  }
 
   void _onSquareTapped(String square) {
     if (!widget.interactive) return;
@@ -165,6 +229,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     });
 
     if (moveSuccess) {
+      _startMoveAnimation(from, to);
       if (isCapture) {
         SoundService.playCapture();
         HapticsService.medium();
@@ -198,6 +263,15 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     return null;
   }
 
+  Offset _squareToOffset(String sq, double squareSize, bool flipped) {
+    if (sq.length < 2) return Offset.zero;
+    final file = sq.codeUnitAt(0) - 'a'.codeUnitAt(0);
+    final rank = int.parse(sq[1]) - 1;
+    final col = flipped ? 7 - file : file;
+    final row = flipped ? rank : 7 - rank;
+    return Offset(col * squareSize, row * squareSize);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -214,6 +288,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
             width: boardSize,
             height: boardSize,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 // 1. Board Background, Outlines, Inset Coordinates, and Arrows Canvas
                 CustomPaint(
@@ -245,6 +320,55 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
                       height: squareSize,
                       child: _buildSquareInteractive(f, r, squareSize),
                     ),
+
+                // 3. Smooth Physical "Lift-from-Ground" Piece Movement Animation Overlay
+                if (_animPiece != null && _animFromSquare != null && _animToSquare != null)
+                  AnimatedBuilder(
+                    animation: _moveCurveAnim,
+                    builder: (context, child) {
+                      final t = _moveCurveAnim.value;
+                      final fromOffset = _squareToOffset(_animFromSquare!, squareSize, widget.flipped);
+                      final toOffset = _squareToOffset(_animToSquare!, squareSize, widget.flipped);
+                      final currentOffset = Offset.lerp(fromOffset, toOffset, t)!;
+
+                      // Physics: Lifts up from the ground, expands soft blurred shadow, and lands softly
+                      final lift = sin(t * pi);
+                      final scale = 1.0 + (0.15 * lift);
+                      final shadowOpacity = (0.35 * lift).clamp(0.0, 0.35);
+
+                      return Positioned(
+                        left: currentOffset.dx,
+                        top: currentOffset.dy,
+                        width: squareSize,
+                        height: squareSize,
+                        child: Transform.scale(
+                          scale: scale,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: lift > 0.05
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: shadowOpacity),
+                                        blurRadius: 10 * lift,
+                                        spreadRadius: 2 * lift,
+                                        offset: Offset(0, 8 * lift),
+                                      ),
+                                    ]
+                                  : const [],
+                            ),
+                            alignment: Alignment.center,
+                            child: ChessPieceWidget(
+                              type: _animPiece!.type.name.toLowerCase(),
+                              color: _animPiece!.color == chess.Color.WHITE ? 'w' : 'b',
+                              theme: widget.pieceTheme,
+                              size: squareSize * 0.95,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
           ),
@@ -258,6 +382,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
     final rankNum = widget.flipped ? r + 1 : 8 - r;
     final sq = '$fileChar$rankNum';
     final piece = widget.game.get(sq);
+    final isFlying = sq == _animToSquare && _animPiece != null;
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) {
@@ -274,7 +399,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _onSquareTapped(sq),
-          child: piece != null
+          child: (piece != null && !isFlying)
               ? (widget.interactive && piece.color == widget.game.turn
                   ? Draggable<String>(
                       data: sq,

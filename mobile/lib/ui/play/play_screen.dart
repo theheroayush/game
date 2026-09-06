@@ -256,11 +256,19 @@ class _PlayScreenState extends State<PlayScreen> {
       bool isCapture = false;
 
       if (res != null) {
-        // 1. Try standard SAN execution first (guarantees promotion formatting)
+        // 1. Coordinate-first execution (100% deterministic, eliminates SAN parsing discrepancies)
         try {
           final targetPiece = _game.get(res.to);
           isCapture = targetPiece != null;
-          success = _game.move(res.san);
+          final moveMap = <String, dynamic>{
+            'from': res.from,
+            'to': res.to,
+          };
+          final promo = res.promotion != null && res.promotion!.isNotEmpty ? res.promotion![0] : null;
+          if (promo != null) {
+            moveMap['promotion'] = promo;
+          }
+          success = _game.move(moveMap);
           if (success) {
             playedFrom = res.from;
             playedTo = res.to;
@@ -270,18 +278,12 @@ class _PlayScreenState extends State<PlayScreen> {
           success = false;
         }
 
-        // 2. Try verbose coordinates
+        // 2. Secondary fallback to SAN string
         if (!success) {
           try {
-            final promo = res.promotion != null && res.promotion!.isNotEmpty ? res.promotion![0] : null;
-            final moveMap = <String, dynamic>{
-              'from': res.from,
-              'to': res.to,
-            };
-            if (promo != null) {
-              moveMap['promotion'] = promo;
-            }
-            success = _game.move(moveMap);
+            final targetPiece = _game.get(res.to);
+            isCapture = targetPiece != null;
+            success = _game.move(res.san);
             if (success) {
               playedFrom = res.from;
               playedTo = res.to;
@@ -293,16 +295,35 @@ class _PlayScreenState extends State<PlayScreen> {
         }
       }
 
-      // 3. Self-healing fallback: if engine response failed or errored, pick first legal move
+      // 3. Self-healing fallback with positional evaluation rather than arbitrary first move
       if (!success && !_game.game_over) {
         final rawLegal = _game.moves({'verbose': true});
         if (rawLegal.isNotEmpty) {
-          final fallbackMove = rawLegal.first as Map<String, dynamic>;
-          success = _game.move(fallbackMove);
+          Map<String, dynamic>? bestFallback;
+          int bestEval = _game.turn == chess.Color.WHITE ? -999999 : 999999;
+          for (final lm in rawLegal) {
+            final moveMap = lm as Map<String, dynamic>;
+            _game.move(moveMap);
+            final ev = evaluatePosition(_game, _personality);
+            _game.undo();
+            if (_game.turn == chess.Color.WHITE) {
+              if (ev > bestEval) {
+                bestEval = ev;
+                bestFallback = moveMap;
+              }
+            } else {
+              if (ev < bestEval) {
+                bestEval = ev;
+                bestFallback = moveMap;
+              }
+            }
+          }
+          final chosenFallback = bestFallback ?? (rawLegal.first as Map<String, dynamic>);
+          success = _game.move(chosenFallback);
           if (success) {
-            playedFrom = fallbackMove['from'] as String?;
-            playedTo = fallbackMove['to'] as String?;
-            playedSan = fallbackMove['san'] as String?;
+            playedFrom = chosenFallback['from'] as String?;
+            playedTo = chosenFallback['to'] as String?;
+            playedSan = chosenFallback['san'] as String?;
             final targetPiece = playedTo != null ? _game.get(playedTo) : null;
             isCapture = targetPiece != null;
           }

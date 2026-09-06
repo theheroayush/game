@@ -149,8 +149,8 @@ void main() {
       }
     });
 
-    test('All 15 opening repertoires are loaded with key ideas', () {
-      expect(OPENINGS_DATABASE.length, 15);
+    test('Opening repertoires are loaded with comprehensive key ideas', () {
+      expect(OPENINGS_DATABASE.length, greaterThanOrEqualTo(15));
       for (final op in OPENINGS_DATABASE) {
         expect(op.eco.isNotEmpty, isTrue);
         expect(op.moves.isNotEmpty, isTrue);

@@ -451,7 +451,7 @@ void resetEngineSearchState() {
       _historyTable[i][j] = 0;
     }
   }
-  if (_ttCache.length > 80000) {
+  if (_ttCache.length > 150000) {
     _ttCache.clear();
   }
 }
@@ -505,6 +505,7 @@ MinimaxResult minimax(
   bool isMaximizing, {
   AIPersonalityId personality = AIPersonalityId.balanced,
   bool useQuiescence = true,
+  int quiescenceDepth = 4,
   int? deadline,
   int ply = 0,
 }) {
@@ -514,7 +515,7 @@ MinimaxResult minimax(
 
   if (depth <= 0) {
     if (useQuiescence) {
-      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, 4, personality));
+      return MinimaxResult(score: quiescence(game, alpha, beta, isMaximizing, quiescenceDepth, personality));
     }
     return MinimaxResult(score: evaluatePosition(game, personality));
   }
@@ -621,6 +622,7 @@ MinimaxResult minimax(
         false,
         personality: personality,
         useQuiescence: useQuiescence,
+        quiescenceDepth: quiescenceDepth,
         deadline: deadline,
         ply: ply + 1,
       );
@@ -690,6 +692,7 @@ MinimaxResult minimax(
         true,
         personality: personality,
         useQuiescence: useQuiescence,
+        quiescenceDepth: quiescenceDepth,
         deadline: deadline,
         ply: ply + 1,
       );
@@ -772,10 +775,13 @@ SearchResult searchBestMoveIterative(
 
   final currentOrderedMoves = List<Map<String, dynamic>>.from(rootCandidates);
 
+  final qDepth = maxDepth >= 6 ? 8 : 4;
+
   for (int d = 1; d <= maxDepth; d++) {
     final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
-    // Predictive time cutoff: if more than 75% of budget has elapsed and d > 2, do not start deeper iteration
-    if (d > 2 && elapsed >= maxTimeMs * 0.75) {
+    // For high depths (e.g. Magnus), guarantee at least depth 4 before soft predictive time break
+    final minGuaranteedDepth = maxDepth >= 7 ? 4 : (maxDepth >= 5 ? 3 : 2);
+    if (d > minGuaranteedDepth && elapsed >= maxTimeMs * 0.85) {
       break;
     }
 
@@ -809,6 +815,7 @@ SearchResult searchBestMoveIterative(
         !isMaximizing,
         personality: personality,
         useQuiescence: useQuiescence,
+        quiescenceDepth: qDepth,
         deadline: deadline,
         ply: 1,
       );
@@ -851,6 +858,24 @@ SearchResult searchBestMoveIterative(
       currentOrderedMoves.clear();
       for (final sm in iterationScoredMoves) {
         currentOrderedMoves.add(sm.move);
+      }
+    } else if (iterationInterrupted && iterationScoredMoves.isNotEmpty && completedRootMoves.isNotEmpty) {
+      // Partial iteration preservation: update root moves with newly evaluated scores
+      final updatedMap = <String, ScoredMove>{};
+      for (final sm in completedRootMoves) {
+        updatedMap['${sm.move['from']}_${sm.move['to']}'] = sm;
+      }
+      for (final sm in iterationScoredMoves) {
+        updatedMap['${sm.move['from']}_${sm.move['to']}'] = sm;
+      }
+      final mergedList = updatedMap.values.toList();
+      mergedList.sort((a, b) {
+        return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
+      });
+      if (mergedList.isNotEmpty) {
+        completedBestMove = mergedList.first.move;
+        completedScore = mergedList.first.score;
+        completedRootMoves = mergedList;
       }
     } else if (d == 1 && iterationScoredMoves.isNotEmpty) {
       // Ensure at least depth 1 has data
