@@ -18,6 +18,8 @@ interface PlayerCardProps {
   capturedPieces: PieceSymbol[];
   materialAdvantage: number;
   pieceThemeId?: PieceThemeId;
+  speechBubble?: string | null;
+  onDismissBanter?: () => void;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -34,6 +36,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   capturedPieces,
   materialAdvantage,
   pieceThemeId = 'staunton',
+  speechBubble,
+  onDismissBanter,
 }) => {
   // Format clock mm:ss
   const formatTime = (secs: number) => {
@@ -55,12 +59,24 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
 
   return (
     <div
-      className={`flex items-center justify-between px-3 py-2 md:px-3.5 md:py-2.5 rounded-2xl border transition-all duration-200 ${
+      className={`relative flex items-center justify-between px-3 py-2 md:px-3.5 md:py-2.5 rounded-2xl border transition-all duration-200 ${
         isActive
           ? 'bg-zinc-900/95 border-blue-500/80 shadow-md ring-1 ring-blue-500/20'
           : 'bg-zinc-950/70 border-zinc-800/90 text-zinc-400'
       }`}
     >
+      {/* Speech Bubble / Bot Banter Balloon */}
+      {speechBubble && (
+        <div
+          onClick={onDismissBanter}
+          className="absolute -top-11 left-4 z-40 bg-zinc-900 border border-blue-400/80 text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-90 duration-150 cursor-pointer flex items-center gap-1.5 max-w-[320px]"
+          title="Click to dismiss"
+        >
+          <span className="text-sm">💬</span>
+          <span className="truncate">{speechBubble}</span>
+          <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-zinc-900 border-r border-b border-blue-400/80 rotate-45" />
+        </div>
+      )}
       {/* Left: Avatar, Name, Elo & Material Tray */}
       <div className="flex items-center gap-2.5 md:gap-3">
         {/* Avatar */}

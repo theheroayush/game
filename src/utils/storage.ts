@@ -99,11 +99,17 @@ export function saveGame(game: GameRecord): void {
     const playerWon = (game.result === '1-0' && isWhite) || (game.result === '0-1' && !isWhite);
     const isDraw = game.result === '1/2-1/2';
 
+    if (!stats.unlockedTrophies) stats.unlockedTrophies = [];
+
     if (playerWon) {
       stats.wins += 1;
       stats.winStreak += 1;
       if (stats.winStreak > stats.bestWinStreak) {
         stats.bestWinStreak = stats.winStreak;
+      }
+      const botName = (isWhite ? game.blackPlayer : game.whitePlayer).replace(/\s*\(.*?\)/, '').trim();
+      if (botName && !stats.unlockedTrophies.includes(botName)) {
+        stats.unlockedTrophies.push(botName);
       }
       const ratingGain = Math.max(8, Math.round(32 / (1 + Math.pow(10, (stats.rating - game.blackElo) / 400))));
       stats.rating += ratingGain;

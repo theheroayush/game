@@ -85,6 +85,9 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
     _rushTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_timeLeftSec > 0) {
         setState(() => _timeLeftSec--);
+        if (_timeLeftSec <= 10 && _timeLeftSec > 0) {
+          SoundService.playLowTimeTick();
+        }
       } else {
         _endRushMode('Time\'s Up!');
       }
@@ -159,9 +162,12 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
         setState(() {
           _isSolved = true;
           _rushScore++;
+          if (_mode == PuzzleMode.rush3 || _mode == PuzzleMode.rush5) {
+            _timeLeftSec += 5;
+          }
         });
-        SoundService.playVictory();
-        HapticsService.vibrate();
+        SoundService.playSprintSuccess();
+        HapticsService.success();
 
         // Update stats
         final stats = StorageService.loadStats();
@@ -170,7 +176,7 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
         StorageService.saveStats(stats);
 
         if (_mode != PuzzleMode.practice && _isRushActive) {
-          Future.delayed(const Duration(milliseconds: 700), () {
+          Future.delayed(const Duration(milliseconds: 600), () {
             if (mounted && _isRushActive) {
               _loadPuzzle((_currentPuzzleIndex + 1) % PUZZLES_DATABASE.length);
             }
@@ -196,14 +202,14 @@ class _PuzzlesScreenState extends State<PuzzlesScreen> {
       }
     } else {
       // Incorrect Move
-      SoundService.playError();
-      HapticsService.heavy();
+      SoundService.playSprintStrike();
+      HapticsService.error();
       _game.undo();
 
-      if (_mode == PuzzleMode.survival) {
+      if (_mode != PuzzleMode.practice) {
         setState(() => _strikes++);
         if (_strikes >= 3) {
-          _endRushMode('3 Strikes — Game Over!');
+          _endRushMode('3 Strikes — Sprint Over!');
           return;
         }
       }

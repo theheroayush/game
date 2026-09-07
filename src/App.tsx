@@ -26,10 +26,12 @@ import {
 import { sounds } from './utils/sound';
 import { voiceCoach } from './utils/voiceCoach';
 import { haptics } from './utils/haptics';
+import { getBotBanter, BanterTrigger } from './data/botBanter';
 
 import { Navbar } from './components/Navbar';
 import { PlayLobby } from './components/PlayLobby';
 import { Chessboard } from './components/Chessboard';
+import { BoardArrow } from './components/BoardArrows';
 import { PlayerCard } from './components/PlayerCard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameOverModal } from './components/GameOverModal';
@@ -102,6 +104,144 @@ export const App: React.FC = () => {
 
   const diffConfig = DIFFICULTY_LEVELS.find((d) => d.level === difficultyLevel) || DIFFICULTY_LEVELS[2];
   const persConfig = AI_PERSONALITIES.find((p) => p.id === personality) || AI_PERSONALITIES[0];
+
+  // Bot Banter & Speech Bubble State
+  const [botSpeech, setBotSpeech] = useState<string | null>(null);
+  const botSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerBotBanter = useCallback(
+    (trigger: BanterTrigger) => {
+      const line = getBotBanter(diffConfig.name, trigger);
+      if (!line) return;
+      if (botSpeechTimeoutRef.current) clearTimeout(botSpeechTimeoutRef.current);
+      setBotSpeech(line);
+      sounds.playBanter();
+      botSpeechTimeoutRef.current = setTimeout(() => {
+        setBotSpeech(null);
+      }, 4500);
+    },
+    [diffConfig.name]
+  );
+
+  // Visual Best Move, Threat Arrows & Heatmap State
+  const [showBestMove, setShowBestMove] = useState<boolean>(false);
+  const [showThreats, setShowThreats] = useState<boolean>(false);
+  const [showThreatHeatmap, setShowThreatHeatmap] = useState<boolean>(false);
+  const [bestMoveArrow, setBestMoveArrow] = useState<BoardArrow | null>(null);
+  const [threatArrows, setThreatArrows] = useState<BoardArrow[]>([]);
+  const [threatHeatmap, setThreatHeatmap] = useState<Partial<Record<Square, number>>>({});
+
+  // Compute Best Move arrow
+  useEffect(() => {
+    if (!showBestMove || gameState !== 'playing' || chess.turn() !== playerColor) {
+      setBestMoveArrow(null);
+      return;
+    }
+    let cancelled = false;
+    engineService.getBestMove(chess.fen(), 10, personality, chess.history()).then((res) => {
+      if (!cancelled && res && res.from && res.to) {
+        setBestMoveArrow({
+          from: res.from as Square,
+          to: res.to as Square,
+          color: '#10b981',
+          label: 'Best',
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showBestMove, gameState, chess, playerColor, personality, movesHistory.length]);
+
+  // Compute Threat Arrows & Heatmap
+  useEffect(() => {
+    if (gameState !== 'playing') {
+      setThreatArrows([]);
+      setThreatHeatmap({});
+      return;
+    }
+
+    if (showThreats) {
+      const oppColor: Color = playerColor === 'w' ? 'b' : 'w';
+      const threats: BoardArrow[] = [];
+      const oppCopy = new Chess(chess.fen());
+
+      if (oppCopy.turn() === playerColor) {
+        const tokens = oppCopy.fen().split(' ');
+        tokens[1] = oppColor;
+        tokens[3] = '-';
+        try {
+          oppCopy.load(tokens.join(' '));
+        } catch {
+          // fallback
+        }
+      }
+
+      if (oppCopy.turn() === oppColor) {
+        const oppMoves = oppCopy.moves({ verbose: true });
+        for (const m of oppMoves) {
+          if (m.captured) {
+            threats.push({
+              from: m.from as Square,
+              to: m.to as Square,
+              color: '#ef4444',
+              label: 'Threat',
+            });
+          }
+        }
+      }
+      setThreatArrows(threats.slice(0, 5));
+    } else {
+      setThreatArrows([]);
+    }
+
+    if (showThreatHeatmap) {
+      const heatmap: Partial<Record<Square, number>> = {};
+      const allSquares: Square[] = [];
+      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+      const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
+      for (const f of files) {
+        for (const r of ranks) {
+          allSquares.push(`${f}${r}` as Square);
+        }
+      }
+
+      try {
+        const wCopy = new Chess(chess.fen());
+        const bCopy = new Chess(chess.fen());
+        const tokens = chess.fen().split(' ');
+        tokens[1] = 'w';
+        wCopy.load(tokens.join(' '));
+        tokens[1] = 'b';
+        bCopy.load(tokens.join(' '));
+
+        const wTargets = new Set(wCopy.moves({ verbose: true }).map((m) => m.to));
+        const bTargets = new Set(bCopy.moves({ verbose: true }).map((m) => m.to));
+
+        for (const sq of allSquares) {
+          const wAttacks = wTargets.has(sq);
+          const bAttacks = bTargets.has(sq);
+          if (wAttacks && bAttacks) {
+            heatmap[sq] = 0.9;
+          } else if (playerColor === 'w' ? bAttacks : wAttacks) {
+            heatmap[sq] = 0.6;
+          }
+        }
+      } catch {
+        // fallback
+      }
+      setThreatHeatmap(heatmap);
+    } else {
+      setThreatHeatmap({});
+    }
+  }, [showThreats, showThreatHeatmap, gameState, chess, playerColor, movesHistory.length]);
+
+  const activeBoardArrows = React.useMemo(() => {
+    const arr: BoardArrow[] = [];
+    if (bestMoveArrow) arr.push(bestMoveArrow);
+    if (threatArrows.length > 0) arr.push(...threatArrows);
+    return arr;
+  }, [bestMoveArrow, threatArrows]);
 
   // Material evaluation and captured pieces tracking
   const { whiteCaptured, blackCaptured, materialAdvantage } = React.useMemo(() => {
@@ -189,13 +329,18 @@ export const App: React.FC = () => {
         openingName: matchOpening?.name,
       };
 
-      // Sound & Haptic
+      // Sound & Haptic & Bot Banter
       const playerWon = (res === '1-0' && playerColor === 'w') || (res === '0-1' && playerColor === 'b');
       if (playerWon) {
         sounds.playCheckmate();
         haptics.victory();
+        triggerBotBanter('player_win');
+      } else if (res === '1/2-1/2') {
+        sounds.playMove();
+        triggerBotBanter('draw');
       } else {
         sounds.playDefeat();
+        triggerBotBanter('bot_win');
       }
 
       // Persist game
@@ -298,6 +443,9 @@ export const App: React.FC = () => {
         if (chess.inCheck()) {
           sounds.playCheck();
           haptics.check();
+          triggerBotBanter('bot_check');
+        } else if (move.captured) {
+          triggerBotBanter('bot_capture');
         }
 
         voiceCoach.announceMove(move.san, !!move.captured, chess.inCheck(), chess.isCheckmate());
@@ -374,6 +522,7 @@ export const App: React.FC = () => {
     setCurrentTab('play');
     window.scrollTo({ top: 0, behavior: 'instant' });
     forceRender();
+    setTimeout(() => triggerBotBanter('start'), 600);
 
     // If AI is White, trigger AI move
     if (assignedColor === 'b' && initialMoves.length % 2 === 0) {
@@ -466,6 +615,9 @@ export const App: React.FC = () => {
       if (chess.inCheck()) {
         sounds.playCheck();
         haptics.check();
+        triggerBotBanter('player_check');
+      } else if (move.captured && (move.captured === 'q' || move.captured === 'r')) {
+        triggerBotBanter('player_brilliant');
       }
 
       voiceCoach.announceMove(move.san, !!move.captured, chess.inCheck(), chess.isCheckmate());
@@ -660,6 +812,8 @@ export const App: React.FC = () => {
                         color={playerColor === 'w' ? 'b' : 'w'}
                         isActive={turn === (playerColor === 'w' ? 'b' : 'w')}
                         isThinking={isAIThinking && turn === (playerColor === 'w' ? 'b' : 'w')}
+                        speechBubble={playerColor === 'w' ? botSpeech : null}
+                        onDismissBanter={() => setBotSpeech(null)}
                         timeLeftSeconds={playerColor === 'w' ? blackTime : whiteTime}
                         hasClock={timeControl.category !== 'none'}
                         capturedPieces={playerColor === 'w' ? blackCaptured : whiteCaptured}
@@ -670,6 +824,46 @@ export const App: React.FC = () => {
                         }
                         pieceThemeId={settings.pieceTheme}
                       />
+                    </div>
+
+                    {/* Tactical Vision Toolbar */}
+                    <div className="w-full max-w-[min(100vw-24px,min(calc(100vh-230px),480px))] flex items-center justify-between gap-1.5 py-1 px-2.5 bg-zinc-900/90 border border-zinc-800 rounded-xl text-xs shadow-md">
+                      <button
+                        onClick={() => setShowBestMove((v) => !v)}
+                        className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+                          showBestMove
+                            ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                            : 'bg-zinc-800 text-zinc-300 hover:text-white'
+                        }`}
+                        title="Show engine's recommended move arrow"
+                      >
+                        <span>💡</span>
+                        <span>Best Move</span>
+                      </button>
+                      <button
+                        onClick={() => setShowThreats((v) => !v)}
+                        className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+                          showThreats
+                            ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
+                            : 'bg-zinc-800 text-zinc-300 hover:text-white'
+                        }`}
+                        title="Show opponent threat attack arrows"
+                      >
+                        <span>⚠️</span>
+                        <span>Threats</span>
+                      </button>
+                      <button
+                        onClick={() => setShowThreatHeatmap((v) => !v)}
+                        className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+                          showThreatHeatmap
+                            ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+                            : 'bg-zinc-800 text-zinc-300 hover:text-white'
+                        }`}
+                        title="Show contested squares tension heatmap"
+                      >
+                        <span>🔥</span>
+                        <span>Heatmap</span>
+                      </button>
                     </div>
 
                     {/* Main Board */}
@@ -683,6 +877,8 @@ export const App: React.FC = () => {
                       showLegalMoves={settings.showLegalMoves}
                       showLastMove={settings.showLastMove}
                       lastMove={lastMove}
+                      arrows={activeBoardArrows}
+                      threatHeatmap={threatHeatmap}
                       evalScore={evalScore}
                       showEvalBar={true}
                       onMove={handlePlayerMove}
@@ -699,6 +895,8 @@ export const App: React.FC = () => {
                         color={playerColor}
                         isActive={turn === playerColor}
                         isThinking={false}
+                        speechBubble={playerColor === 'b' ? botSpeech : null}
+                        onDismissBanter={() => setBotSpeech(null)}
                         timeLeftSeconds={playerColor === 'w' ? whiteTime : blackTime}
                         hasClock={timeControl.category !== 'none'}
                         capturedPieces={playerColor === 'w' ? whiteCaptured : blackCaptured}

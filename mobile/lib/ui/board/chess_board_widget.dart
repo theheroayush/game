@@ -16,6 +16,7 @@ class ChessBoardWidget extends StatefulWidget {
   final String? lastMoveFrom;
   final String? lastMoveTo;
   final List<BoardArrow> arrows;
+  final Map<String, double>? threatHeatmap;
   final bool showCoordinates;
   final Function(String from, String to, String? promotion)? onMove;
   final VoidCallback? onBoardChanged;
@@ -30,6 +31,7 @@ class ChessBoardWidget extends StatefulWidget {
     this.lastMoveFrom,
     this.lastMoveTo,
     this.arrows = const [],
+    this.threatHeatmap,
     this.showCoordinates = true,
     this.onMove,
     this.onBoardChanged,
@@ -303,6 +305,7 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget> with SingleTickerPr
                     legalSquares: _legalDestinations,
                     captureSquares: _legalCaptures,
                     arrows: widget.arrows,
+                    threatHeatmap: widget.threatHeatmap,
                     showCoordinates: widget.showCoordinates,
                     leftGutter: 0.0,
                     bottomGutter: 0.0,

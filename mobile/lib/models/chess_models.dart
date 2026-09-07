@@ -1,3 +1,5 @@
+import 'dart:math';
+
 typedef Square = String;
 
 enum PlayerColor { white, black }
@@ -444,6 +446,7 @@ class UserStats {
   int bestWinStreak;
   List<RatingEntry> ratingHistory;
   String favoriteOpening;
+  List<String> unlockedTrophies;
 
   UserStats({
     this.rating = 1200,
@@ -458,7 +461,9 @@ class UserStats {
     this.bestWinStreak = 0,
     List<RatingEntry>? ratingHistory,
     this.favoriteOpening = 'Sicilian Defense',
-  }) : ratingHistory = ratingHistory ?? [RatingEntry(date: DateTime.now().toIso8601String().split('T')[0], rating: 1200)];
+    List<String>? unlockedTrophies,
+  })  : ratingHistory = ratingHistory ?? [RatingEntry(date: DateTime.now().toIso8601String().split('T')[0], rating: 1200)],
+        unlockedTrophies = unlockedTrophies ?? [];
 
   Map<String, dynamic> toJson() => {
     'rating': rating,
@@ -473,6 +478,7 @@ class UserStats {
     'bestWinStreak': bestWinStreak,
     'ratingHistory': ratingHistory.map((r) => r.toJson()).toList(),
     'favoriteOpening': favoriteOpening,
+    'unlockedTrophies': unlockedTrophies,
   };
 
   factory UserStats.fromJson(Map<String, dynamic> json) => UserStats(
@@ -488,7 +494,22 @@ class UserStats {
     bestWinStreak: json['bestWinStreak'] as int? ?? 0,
     ratingHistory: (json['ratingHistory'] as List<dynamic>?)?.map((r) => RatingEntry.fromJson(r as Map<String, dynamic>)).toList(),
     favoriteOpening: json['favoriteOpening'] as String? ?? 'Sicilian Defense',
+    unlockedTrophies: (json['unlockedTrophies'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
   );
+}
+
+class EloCalculator {
+  static int calculateDelta({
+    required int playerElo,
+    required int opponentElo,
+    required double score, // 1.0 = win, 0.5 = draw, 0.0 = loss
+    int kFactor = 32,
+  }) {
+    // FIDE Rating Difference Formula: E = 1 / (1 + 10^((opp - player) / 400))
+    final double exponent = (opponentElo - playerElo) / 400.0;
+    final double expected = 1.0 / (1.0 + pow(10.0, exponent));
+    return (kFactor * (score - expected)).round();
+  }
 }
 
 enum BoardThemeId { emerald, slate, wood, sapphire, onyx }

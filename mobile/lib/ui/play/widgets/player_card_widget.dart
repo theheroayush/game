@@ -23,6 +23,8 @@ class PlayerCardWidget extends StatelessWidget {
   final List<String> capturedPieces;
   final int materialAdvantage;
   final PieceThemeId pieceThemeId;
+  final String? speechBubble;
+  final VoidCallback? onDismissBanter;
 
   const PlayerCardWidget({
     super.key,
@@ -38,6 +40,8 @@ class PlayerCardWidget extends StatelessWidget {
     required this.capturedPieces,
     required this.materialAdvantage,
     this.pieceThemeId = PieceThemeId.staunton,
+    this.speechBubble,
+    this.onDismissBanter,
   });
 
   String _formatClock(int totalSec) {
@@ -60,7 +64,7 @@ class PlayerCardWidget extends StatelessWidget {
     }
     const pieceOrder = ['q', 'r', 'b', 'n', 'p'];
 
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -326,6 +330,63 @@ class PlayerCardWidget extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    if (speechBubble == null || speechBubble!.isEmpty) {
+      return card;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 12, bottom: 3, right: 12),
+          child: GestureDetector(
+            onTap: onDismissBanter,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 1.0),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x330284C7),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    aiAvatar ?? '💬',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      speechBubble!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.close, size: 12, color: Colors.white60),
+                ],
+              ),
+            ),
+          ),
+        ),
+        card,
+      ],
     );
   }
 }

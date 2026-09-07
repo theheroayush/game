@@ -12,10 +12,22 @@ export interface BoardArrow {
 interface BoardArrowsProps {
   arrows: BoardArrow[];
   flipped?: boolean;
+  threatHeatmap?: Partial<Record<Square, number>>;
 }
 
-export const BoardArrows: React.FC<BoardArrowsProps> = ({ arrows, flipped = false }) => {
-  if (!arrows || arrows.length === 0) return null;
+export const BoardArrows: React.FC<BoardArrowsProps> = ({ arrows, flipped = false, threatHeatmap }) => {
+  const getSquareTopLeft = (square: Square): { x: number; y: number } => {
+    const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+    const rank = 8 - parseInt(square[1], 10);
+
+    const fIdx = flipped ? 7 - file : file;
+    const rIdx = flipped ? 7 - rank : rank;
+
+    return {
+      x: fIdx * 12.5,
+      y: rIdx * 12.5,
+    };
+  };
 
   const getSquareCenter = (square: Square): { x: number; y: number } => {
     const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -30,6 +42,10 @@ export const BoardArrows: React.FC<BoardArrowsProps> = ({ arrows, flipped = fals
     };
   };
 
+  const hasArrows = arrows && arrows.length > 0;
+  const hasHeatmap = threatHeatmap && Object.keys(threatHeatmap).length > 0;
+  if (!hasArrows && !hasHeatmap) return null;
+
   return (
     <svg
       viewBox="0 0 100 100"
@@ -41,6 +57,29 @@ export const BoardArrows: React.FC<BoardArrowsProps> = ({ arrows, flipped = fals
           <feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#000000" floodOpacity="0.6" />
         </filter>
       </defs>
+
+      {/* 1. Threat Heatmap Overlay */}
+      {hasHeatmap &&
+        Object.entries(threatHeatmap).map(([sq, count]) => {
+          if (!count || count <= 0) return null;
+          const pos = getSquareTopLeft(sq as Square);
+          // Scale opacity by threat intensity
+          const opacity = Math.min(0.45, 0.15 + count * 0.08);
+          return (
+            <rect
+              key={`heat-${sq}`}
+              x={pos.x}
+              y={pos.y}
+              width={12.5}
+              height={12.5}
+              fill="#ef4444"
+              opacity={opacity}
+              stroke="#ef4444"
+              strokeWidth="0.3"
+              rx="0.5"
+            />
+          );
+        })}
 
       {arrows.map((arrow, idx) => {
         const start = getSquareCenter(arrow.from);

@@ -186,6 +186,61 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ stats, games: _games }
           </span>
         </div>
       </div>
+
+      {/* Bot Trophies & Hall of Fame Cabinet */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span>Bot Trophy Cabinet</span>
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">Defeat each of the 10 AI characters to claim their grandmaster sigil</p>
+          </div>
+          <span className="text-xs font-mono font-bold text-amber-400">
+            {(stats.unlockedTrophies?.length || 0)} / 10 Claimed
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {[
+            { name: 'Jimmy', elo: 600, badge: '🤖', title: 'Cog of Learning' },
+            { name: 'Martin', elo: 800, badge: '🥋', title: 'Martial Focus' },
+            { name: 'Elena', elo: 1000, badge: '🎯', title: 'Bullseye Aim' },
+            { name: 'Nelson', elo: 1200, badge: '⚔️', title: 'Queen Scepter' },
+            { name: 'Antonio', elo: 1400, badge: '⚖️', title: 'Balance Scale' },
+            { name: 'Sofia', elo: 1600, badge: '🏰', title: 'Rook Citadel' },
+            { name: 'Laura', elo: 1800, badge: '✨', title: 'Constellation' },
+            { name: 'Viktor', elo: 2000, badge: '🦁', title: 'Lion Roar' },
+            { name: 'Alexander', elo: 2200, badge: '🦅', title: 'Imperial Crest' },
+            { name: 'Magnus', elo: 2500, badge: '👑', title: 'Apex Crown' },
+          ].map((bot) => {
+            const isUnlocked = stats.unlockedTrophies?.some((t) =>
+              t.toLowerCase().includes(bot.name.toLowerCase())
+            );
+            return (
+              <div
+                key={bot.name}
+                className={`relative rounded-2xl p-3 text-center border transition-all duration-200 ${
+                  isUnlocked
+                    ? 'bg-gradient-to-b from-amber-500/15 via-zinc-900 to-zinc-900 border-amber-500/50 shadow-lg shadow-amber-500/10'
+                    : 'bg-zinc-950/60 border-zinc-800/80 opacity-65'
+                }`}
+              >
+                <div className="text-3xl mb-1.5 filter drop-shadow-md">
+                  {isUnlocked ? bot.badge : '🔒'}
+                </div>
+                <h4 className="text-xs font-bold text-white truncate">{bot.name}</h4>
+                <div className="text-[10px] font-mono text-zinc-400 mt-0.5">{bot.elo} Elo</div>
+                <div className={`text-[10px] font-medium mt-1 truncate ${isUnlocked ? 'text-amber-300' : 'text-zinc-600'}`}>
+                  {isUnlocked ? bot.title : 'Locked'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
+

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:chess/chess.dart' as chess;
 import '../../models/chess_models.dart';
 import '../../models/engine_config.dart';
+import '../../data/bot_banter_data.dart';
 import '../../engine/minimax_isolate.dart';
 import '../../engine/evaluation.dart';
 import '../../services/haptics_service.dart';
@@ -74,6 +75,131 @@ class _PlayScreenState extends State<PlayScreen> {
   List<String> _blackCaptured = [];
   int _materialDifference = 0;
 
+  // Bot Banter State
+  String? _botSpeech;
+  Timer? _botSpeechTimer;
+
+  // Tactical Vision: Best Move, Threats & Heatmap
+  bool _showBestMove = false;
+  bool _showThreats = false;
+  bool _showHeatmap = false;
+  BoardArrow? _bestMoveArrow;
+  List<BoardArrow> _threatArrows = [];
+  Map<String, double> _threatHeatmap = {};
+
+  void _triggerBotBanter(BanterTrigger trigger) {
+    if (_isPassAndPlay) return;
+    final bot = getBotCharacter(_difficultyLevel);
+    final text = getBotBanter(bot.name, trigger);
+    if (text == null) return;
+    _botSpeechTimer?.cancel();
+    setState(() => _botSpeech = text);
+    SoundService.playBanter();
+    _botSpeechTimer = Timer(const Duration(milliseconds: 4500), () {
+      if (mounted) setState(() => _botSpeech = null);
+    });
+  }
+
+  void _computeBestMove() {
+    if (!_showBestMove || !_isPlaying || _game.game_over) {
+      setState(() => _bestMoveArrow = null);
+      return;
+    }
+    EngineService.getBestMove(
+      AIMoveRequest(
+        fen: _game.fen,
+        level: math.min(5, _difficultyLevel),
+        personality: _personality,
+        moveSans: _moveSans,
+      ),
+    ).then((res) {
+      if (mounted && _showBestMove) {
+        setState(() {
+          _bestMoveArrow = BoardArrow(
+            from: res.from,
+            to: res.to,
+            color: const Color(0xFF10B981),
+          );
+        });
+      }
+    });
+  }
+
+  void _computeThreats() {
+    if (!_showThreats || !_isPlaying || _game.game_over) {
+      setState(() => _threatArrows = []);
+      return;
+    }
+    final threats = <BoardArrow>[];
+    try {
+      final isPlayerWhite = _playerColor == PlayerColor.white;
+      final oppColor = isPlayerWhite ? 'b' : 'w';
+      final oppGame = chess.Chess.fromFEN(_game.fen);
+      if (oppGame.turn != (isPlayerWhite ? chess.Color.BLACK : chess.Color.WHITE)) {
+        final tokens = oppGame.fen.split(' ');
+        tokens[1] = oppColor;
+        tokens[3] = '-';
+        oppGame.load(tokens.join(' '));
+      }
+      final oppMoves = oppGame.moves({'verbose': true});
+      for (final om in oppMoves) {
+        final map = om as Map<String, dynamic>;
+        if (map['captured'] != null) {
+          final from = map['from'] as String;
+          final to = map['to'] as String;
+          threats.add(BoardArrow(
+            from: from,
+            to: to,
+            color: const Color(0xFFEF4444),
+          ));
+        }
+      }
+    } catch (_) {}
+    setState(() => _threatArrows = threats.take(4).toList());
+  }
+
+  void _computeHeatmap() {
+    if (!_showHeatmap || !_isPlaying || _game.game_over) {
+      setState(() => _threatHeatmap = {});
+      return;
+    }
+    final heatmap = <String, double>{};
+    try {
+      final wGame = chess.Chess.fromFEN(_game.fen);
+      final bGame = chess.Chess.fromFEN(_game.fen);
+      final tokens = _game.fen.split(' ');
+      tokens[1] = 'w';
+      wGame.load(tokens.join(' '));
+      tokens[1] = 'b';
+      bGame.load(tokens.join(' '));
+
+      final wMoves = wGame.moves({'verbose': true});
+      final bMoves = bGame.moves({'verbose': true});
+
+      final wTargets = wMoves.map((m) => (m as Map<String, dynamic>)['to'] as String).toSet();
+      final bTargets = bMoves.map((m) => (m as Map<String, dynamic>)['to'] as String).toSet();
+
+      final allTargets = {...wTargets, ...bTargets};
+      for (final sq in allTargets) {
+        final wAttacks = wTargets.contains(sq);
+        final bAttacks = bTargets.contains(sq);
+        if (wAttacks && bAttacks) {
+          heatmap[sq] = 0.9;
+        } else if (_playerColor == PlayerColor.white ? bAttacks : wAttacks) {
+          heatmap[sq] = 0.55;
+        }
+      }
+    } catch (_) {}
+    setState(() => _threatHeatmap = heatmap);
+  }
+
+  List<BoardArrow> get _allBoardArrows {
+    final list = List<BoardArrow>.from(_arrows);
+    if (_bestMoveArrow != null) list.add(_bestMoveArrow!);
+    if (_threatArrows.isNotEmpty) list.addAll(_threatArrows);
+    return list;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -88,6 +214,7 @@ class _PlayScreenState extends State<PlayScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _botSpeechTimer?.cancel();
     super.dispose();
   }
 
@@ -560,10 +687,39 @@ class _PlayScreenState extends State<PlayScreen> {
       _isPlaying = false;
     });
 
-    SoundService.playVictory();
-    HapticsService.vibrate();
-
     final bot = getBotCharacter(_difficultyLevel);
+    final isWhite = _playerColor == PlayerColor.white;
+    final playerWon = (result == '1-0' && isWhite) || (result == '0-1' && !isWhite);
+    final isDraw = result == '1/2-1/2';
+
+    if (playerWon) {
+      SoundService.playVictory();
+      HapticsService.success();
+      _triggerBotBanter(BanterTrigger.playerWin);
+    } else if (isDraw) {
+      SoundService.playMove();
+      _triggerBotBanter(BanterTrigger.draw);
+    } else {
+      SoundService.playDefeat();
+      _triggerBotBanter(BanterTrigger.botWin);
+    }
+
+    final stats = StorageService.loadStats();
+    final score = playerWon ? 1.0 : (isDraw ? 0.5 : 0.0);
+    final eloDelta = EloCalculator.calculateDelta(
+      playerElo: stats.rating,
+      opponentElo: bot.elo,
+      score: score,
+    );
+    stats.rating = math.max(100, stats.rating + eloDelta);
+    if (playerWon && !stats.unlockedTrophies.contains(bot.name)) {
+      stats.unlockedTrophies.add(bot.name);
+    }
+    stats.ratingHistory.add(RatingEntry(
+      date: DateTime.now().toIso8601String().split('T')[0],
+      rating: stats.rating,
+    ));
+    StorageService.saveStats(stats);
 
     final record = GameRecord(
       id: 'game_${DateTime.now().millisecondsSinceEpoch}',
@@ -1191,6 +1347,8 @@ class _PlayScreenState extends State<PlayScreen> {
           pieceColor: isBlackAtTop ? 'b' : 'w',
           isActive: isTopTurn,
           isThinking: _isAIThinking && isTopTurn && isTopAI,
+          speechBubble: isTopAI ? _botSpeech : null,
+          onDismissBanter: () => setState(() => _botSpeech = null),
           timeLeftSeconds: topClockSec,
           hasClock: _timeControl.baseMinutes > 0,
           capturedPieces: topCaptured,
@@ -1198,6 +1356,51 @@ class _PlayScreenState extends State<PlayScreen> {
               ? (_materialDifference < 0 ? -_materialDifference : 0)
               : (_materialDifference > 0 ? _materialDifference : 0),
           pieceThemeId: _pieceTheme,
+        ),
+
+        // Tactical Vision Toolbar: Best Move, Threats & Heatmap
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildVisionButton(
+                  icon: Icons.lightbulb_outline_rounded,
+                  label: 'Best Move',
+                  isActive: _showBestMove,
+                  activeColor: const Color(0xFF10B981),
+                  onTap: () {
+                    setState(() => _showBestMove = !_showBestMove);
+                    _computeBestMove();
+                  },
+                ),
+                const SizedBox(width: 6),
+                _buildVisionButton(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Threats',
+                  isActive: _showThreats,
+                  activeColor: const Color(0xFFEF4444),
+                  onTap: () {
+                    setState(() => _showThreats = !_showThreats);
+                    _computeThreats();
+                  },
+                ),
+                const SizedBox(width: 6),
+                _buildVisionButton(
+                  icon: Icons.local_fire_department_rounded,
+                  label: 'Heatmap',
+                  isActive: _showHeatmap,
+                  activeColor: const Color(0xFFF59E0B),
+                  onTap: () {
+                    setState(() => _showHeatmap = !_showHeatmap);
+                    _computeHeatmap();
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
 
         // Center Chessboard with Live Evaluation Bar
@@ -1240,7 +1443,8 @@ class _PlayScreenState extends State<PlayScreen> {
                                 interactive: !_isAIThinking,
                                 lastMoveFrom: _lastMoveFrom,
                                 lastMoveTo: _lastMoveTo,
-                                arrows: _arrows,
+                                arrows: _allBoardArrows,
+                                threatHeatmap: _showHeatmap ? _threatHeatmap : null,
                                 showCoordinates: _showCoordinates,
                                 onMove: _onPlayerMove,
                               ),
@@ -1314,6 +1518,8 @@ class _PlayScreenState extends State<PlayScreen> {
           pieceColor: isBlackAtTop ? 'w' : 'b',
           isActive: isBottomTurn,
           isThinking: _isAIThinking && isBottomTurn && isBottomAI,
+          speechBubble: isBottomAI ? _botSpeech : null,
+          onDismissBanter: () => setState(() => _botSpeech = null),
           timeLeftSeconds: bottomClockSec,
           hasClock: _timeControl.baseMinutes > 0,
           capturedPieces: bottomCaptured,
@@ -1323,6 +1529,47 @@ class _PlayScreenState extends State<PlayScreen> {
           pieceThemeId: _pieceTheme,
         ),
       ],
+    );
+  }
+
+  Widget _buildVisionButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticsService.light();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive ? activeColor.withAlpha(50) : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isActive ? activeColor : AppColors.border,
+            width: isActive ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: isActive ? activeColor : AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.white : AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

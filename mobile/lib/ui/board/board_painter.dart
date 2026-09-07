@@ -25,6 +25,7 @@ class BoardPainter extends CustomPainter {
   final List<String> legalSquares;
   final List<String> captureSquares;
   final List<BoardArrow> arrows;
+  final Map<String, double>? threatHeatmap;
   final bool showCoordinates;
   final double leftGutter;
   final double bottomGutter;
@@ -40,6 +41,7 @@ class BoardPainter extends CustomPainter {
     this.legalSquares = const [],
     this.captureSquares = const [],
     this.arrows = const [],
+    this.threatHeatmap,
     this.showCoordinates = true,
     this.leftGutter = 0.0,
     this.bottomGutter = 0.0,
@@ -90,6 +92,15 @@ class BoardPainter extends CustomPainter {
         final fileChar = String.fromCharCode('a'.codeUnitAt(0) + (flipped ? 7 - f : f));
         final rankNum = flipped ? r + 1 : 8 - r;
         final sq = '$fileChar$rankNum';
+
+        // Threat Heatmap Overlay
+        if (threatHeatmap != null && threatHeatmap!.containsKey(sq)) {
+          final intensity = threatHeatmap![sq] ?? 0.5;
+          final heatPaint = Paint()
+            ..color = const Color(0xFFEF4444).withValues(alpha: min(0.60, intensity * 0.55))
+            ..style = PaintingStyle.fill;
+          canvas.drawRect(rect, heatPaint);
+        }
 
         // Last move highlight: Elegant translucent warm gold (Chess.com parity)
         if (sq == lastMoveFrom || sq == lastMoveTo) {

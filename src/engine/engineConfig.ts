@@ -1,4 +1,4 @@
-import { DifficultyConfig, AIPersonality, TimeControlConfig } from '../types/chess';
+import { DifficultyConfig, AIPersonality, AIPersonalityId, TimeControlConfig } from '../types/chess';
 
 export const DIFFICULTY_LEVELS: DifficultyConfig[] = [
   {
@@ -164,3 +164,133 @@ export const TIME_CONTROLS: TimeControlConfig[] = [
   { id: 'classical_30_0', label: '30+0 Classical', category: 'classical', baseMinutes: 30, incrementSeconds: 0 },
   { id: 'none', label: 'No Clock (Casual)', category: 'none', baseMinutes: 0, incrementSeconds: 0 },
 ];
+
+export interface BotCharacter {
+  level: number;
+  name: string;
+  title: string;
+  elo: number;
+  avatar: string;
+  personality: AIPersonalityId;
+  style: string;
+  tier: 'beginner' | 'intermediate' | 'master';
+  desc: string;
+}
+
+export const BOT_CHARACTERS: BotCharacter[] = [
+  {
+    level: 1,
+    name: 'Jimmy',
+    title: 'Novice Bot',
+    elo: 600,
+    avatar: '🤖',
+    personality: 'balanced',
+    style: 'Casual',
+    tier: 'beginner',
+    desc: 'Overlooks hanging pieces, perfect for beginners learning basics.',
+  },
+  {
+    level: 2,
+    name: 'Martin',
+    title: 'Calm Novice',
+    elo: 800,
+    avatar: '🥋',
+    personality: 'balanced',
+    style: 'Beginner',
+    tier: 'beginner',
+    desc: 'Knows rules and simple checks, struggles with multi-step tactics.',
+  },
+  {
+    level: 3,
+    name: 'Elena',
+    title: 'Sharp Casual',
+    elo: 1000,
+    avatar: '🎯',
+    personality: 'tactical',
+    style: 'Tactical',
+    tier: 'beginner',
+    desc: 'Likes early attacks and pins, occasional tactical slips in endgames.',
+  },
+  {
+    level: 4,
+    name: 'Nelson',
+    title: 'Club Novice',
+    elo: 1200,
+    avatar: '⚔️',
+    personality: 'aggressive',
+    style: 'Aggressive',
+    tier: 'intermediate',
+    desc: 'Aggressive queen attacker. Punishes passive openings quickly.',
+  },
+  {
+    level: 5,
+    name: 'Antonio',
+    title: 'Harmonic Intermediate',
+    elo: 1400,
+    avatar: '⚖️',
+    personality: 'balanced',
+    style: 'Balanced',
+    tier: 'intermediate',
+    desc: 'Solid central control, patient development, balanced play.',
+  },
+  {
+    level: 6,
+    name: 'Sofia',
+    title: 'The Architect',
+    elo: 1600,
+    avatar: '🏰',
+    personality: 'positional',
+    style: 'Positional',
+    tier: 'intermediate',
+    desc: 'Locks pawn structures, targets outpost squares, strategic mastery.',
+  },
+  {
+    level: 7,
+    name: 'Laura',
+    title: 'Tactical Magician',
+    elo: 1800,
+    avatar: '✨',
+    personality: 'tactical',
+    style: 'Tricky',
+    tier: 'master',
+    desc: 'Constantly sets tactical traps, forks, and deflection tactics.',
+  },
+  {
+    level: 8,
+    name: 'Viktor',
+    title: 'Club Master',
+    elo: 2000,
+    avatar: '🦁',
+    personality: 'aggressive',
+    style: 'Grandmaster',
+    tier: 'master',
+    desc: 'Fierce calculation and strong endgame conversion.',
+  },
+  {
+    level: 9,
+    name: 'Alexander',
+    title: 'International Master',
+    elo: 2200,
+    avatar: '🦅',
+    personality: 'positional',
+    style: 'Master',
+    tier: 'master',
+    desc: 'Deep positional pressure, tight endgame play, and strategic mastery.',
+  },
+  {
+    level: 10,
+    name: 'Magnus',
+    title: 'World Champion',
+    elo: 2500,
+    avatar: '👑',
+    personality: 'balanced',
+    style: 'World Champion',
+    tier: 'master',
+    desc: 'World-champion deep iterative minimax search with quiescence horizon calculation.',
+  },
+];
+
+export function getBotCharacter(level: number): BotCharacter {
+  return BOT_CHARACTERS.find((b) => b.level === level) || BOT_CHARACTERS[3];
+}
+

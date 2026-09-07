@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chess/chess.dart' as chess;
 import '../../models/chess_models.dart';
+import '../../models/engine_config.dart';
 import '../../services/haptics_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/sound_service.dart';
@@ -420,6 +421,152 @@ class _ToolsScreenState extends State<ToolsScreen> {
             const SizedBox(width: 12),
             Expanded(child: _buildStatCard('Puzzle Rush Best', '${stats.puzzleRushBest}', 'high score', AppColors.amber)),
           ],
+        ),
+        const SizedBox(height: 16),
+
+        // Result Distribution Bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Result Distribution',
+                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 12,
+                  child: stats.gamesPlayed > 0
+                      ? Row(
+                          children: [
+                            if (stats.wins > 0)
+                              Expanded(
+                                flex: stats.wins,
+                                child: Container(color: AppColors.emerald),
+                              ),
+                            if (stats.draws > 0)
+                              Expanded(
+                                flex: stats.draws,
+                                child: Container(color: AppColors.amber),
+                              ),
+                            if (stats.losses > 0)
+                              Expanded(
+                                flex: stats.losses,
+                                child: Container(color: AppColors.red),
+                              ),
+                          ],
+                        )
+                      : Container(color: AppColors.card),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Won: ${stats.wins}', style: const TextStyle(color: AppColors.emerald, fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text('Drawn: ${stats.draws}', style: const TextStyle(color: AppColors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text('Lost: ${stats.losses}', style: const TextStyle(color: AppColors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Bot Trophy Cabinet
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Text('🏆', style: TextStyle(fontSize: 18)),
+                      SizedBox(width: 8),
+                      Text(
+                        'Bot Trophy Cabinet',
+                        style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '${stats.unlockedTrophies.length} / 10 Claimed',
+                    style: const TextStyle(color: AppColors.amber, fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Defeat each AI grandmaster to claim their unique sigil',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 5,
+                  childAspectRatio: 0.72,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemCount: BOT_CHARACTERS.length,
+                itemBuilder: (ctx, idx) {
+                  final bot = BOT_CHARACTERS[idx];
+                  final isUnlocked = stats.unlockedTrophies.any(
+                    (t) => t.toLowerCase().contains(bot.name.toLowerCase()),
+                  );
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isUnlocked ? const Color(0x33F59E0B) : const Color(0xFF181B22),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isUnlocked ? AppColors.amber : AppColors.border,
+                        width: isUnlocked ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          isUnlocked ? bot.avatar : '🔒',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          bot.name,
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${bot.elo}',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 9, fontFamily: 'monospace'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );

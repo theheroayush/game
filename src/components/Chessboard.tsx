@@ -17,6 +17,7 @@ interface ChessboardProps {
   showLastMove?: boolean;
   lastMove?: { from: Square; to: Square } | null;
   arrows?: BoardArrow[];
+  threatHeatmap?: Partial<Record<Square, number>>;
   evalScore?: number; // centipawns (+ white, - black)
   showEvalBar?: boolean;
   onMove?: (from: Square, to: Square, promotion?: string) => boolean;
@@ -33,6 +34,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   showLastMove = true,
   lastMove = null,
   arrows = [],
+  threatHeatmap,
   evalScore = 0,
   showEvalBar = true,
   onMove,
@@ -346,8 +348,8 @@ export const Chessboard: React.FC<ChessboardProps> = ({
         </div>
 
         {/* Dynamic Vector Arrows Overlay */}
-        {arrows && arrows.length > 0 && (
-          <BoardArrows arrows={arrows} flipped={flipped} />
+        {((arrows && arrows.length > 0) || (threatHeatmap && Object.keys(threatHeatmap).length > 0)) && (
+          <BoardArrows arrows={arrows} flipped={flipped} threatHeatmap={threatHeatmap} />
         )}
 
         {/* Floating Dragged Piece */}

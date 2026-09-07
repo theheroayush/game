@@ -38,4 +38,37 @@ class SoundService {
     if (!enabled) return;
     SystemSound.play(SystemSoundType.click);
   }
+
+  static void playCastle() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+    Future.delayed(const Duration(milliseconds: 75), () {
+      SystemSound.play(SystemSoundType.click);
+    });
+  }
+
+  static void playLowTimeTick() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+  }
+
+  static void playSprintSuccess() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+  }
+
+  static void playSprintStrike() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.alert);
+  }
+
+  static void playBanter() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.click);
+  }
+
+  static void playDefeat() {
+    if (!enabled) return;
+    SystemSound.play(SystemSoundType.alert);
+  }
 }

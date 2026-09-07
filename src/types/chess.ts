@@ -136,6 +136,13 @@ export interface UserStats {
   bestWinStreak: number;
   ratingHistory: { date: string; rating: number }[];
   favoriteOpening: string;
+  unlockedTrophies?: string[];
+}
+
+export function calculateEloDelta(playerElo: number, opponentElo: number, score: number, kFactor = 32): number {
+  const exponent = (opponentElo - playerElo) / 400;
+  const expected = 1 / (1 + Math.pow(10, exponent));
+  return Math.round(kFactor * (score - expected));
 }
 
 export type BoardThemeId = 'slate' | 'wood' | 'emerald' | 'sapphire' | 'onyx';

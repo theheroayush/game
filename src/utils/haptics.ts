@@ -55,4 +55,37 @@ export const haptics = {
       }
     }
   },
+
+  // Castling double slide
+  castle: () => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([15, 10, 15]);
+      } catch {
+        // Ignore
+      }
+    }
+  },
+
+  // UI button tap
+  tap: () => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(8);
+      } catch {
+        // Ignore
+      }
+    }
+  },
+
+  // Puzzle Rush strike error buzz
+  strike: () => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([80, 40, 80]);
+      } catch {
+        // Ignore
+      }
+    }
+  },
 };
