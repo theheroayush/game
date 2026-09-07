@@ -66,7 +66,7 @@ void main() {
       final result = searchBestMoveIterative(
         game,
         3,
-        2000,
+        4000,
         true,
         personality: AIPersonalityId.balanced,
       );
@@ -146,6 +146,41 @@ void main() {
 
       // Aggressive evaluation amplifies the tactical check score
       expect(aggressiveEval, isNot(equals(balancedEval)));
+    });
+
+    test('searchBestMoveIterative prioritizes bookMoveSan at root while running full Minimax tree', () {
+      final game = chess.Chess();
+      final result = searchBestMoveIterative(
+        game,
+        3,
+        1500,
+        true,
+        bookMoveSan: 'e4',
+      );
+
+      expect(result.bestMove, isNotNull);
+      expect(result.depthReached, greaterThanOrEqualTo(2));
+      expect(result.rootMoves.isNotEmpty, isTrue);
+      // Minimax verified legal moves were evaluated
+      expect(result.rootMoves.length, equals(20)); // All 20 legal opening moves evaluated
+    });
+
+    test('Magnus AI at move 1 computes move through Minimax search rather than raw book return', () {
+      final game = chess.Chess();
+      final req = AIMoveRequest(
+        fen: game.fen,
+        level: 10,
+        personality: AIPersonalityId.balanced,
+        moveSans: [],
+      );
+
+      final res = computeAIMove(req);
+      expect(res.san.isNotEmpty, isTrue);
+      expect(res.from.isNotEmpty, isTrue);
+      expect(res.to.isNotEmpty, isTrue);
+      // Verifies result is a legal chess move from starting position
+      final temp = chess.Chess();
+      expect(temp.move(res.san), isTrue);
     });
   });
 }

@@ -751,6 +751,7 @@ SearchResult searchBestMoveIterative(
   bool isMaximizing, {
   AIPersonalityId personality = AIPersonalityId.balanced,
   bool useQuiescence = true,
+  String? bookMoveSan,
 }) {
   final startTime = DateTime.now().millisecondsSinceEpoch;
   final deadline = startTime + maxTimeMs;
@@ -774,6 +775,19 @@ SearchResult searchBestMoveIterative(
   resetEngineSearchState();
 
   final currentOrderedMoves = List<Map<String, dynamic>>.from(rootCandidates);
+
+  // If opening book suggests a candidate move, prioritize it in root ordering
+  // so Minimax evaluates it first to establish optimal Alpha-Beta cutoffs across all alternatives
+  if (bookMoveSan != null) {
+    final bookIdx = currentOrderedMoves.indexWhere((m) => m['san'] == bookMoveSan);
+    if (bookIdx > 0) {
+      final bMove = currentOrderedMoves.removeAt(bookIdx);
+      currentOrderedMoves.insert(0, bMove);
+      completedBestMove = bMove;
+    } else if (bookIdx == 0) {
+      completedBestMove = currentOrderedMoves.first;
+    }
+  }
 
   final qDepth = maxDepth >= 6 ? 8 : 4;
 

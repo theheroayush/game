@@ -1257,10 +1257,10 @@ class _PlayScreenState extends State<PlayScreen> {
                                         ),
                                       ],
                                     ),
-                                    child: const Row(
+                                    child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        SizedBox(
+                                        const SizedBox(
                                           width: 12,
                                           height: 12,
                                           child: CircularProgressIndicator(
@@ -1268,10 +1268,10 @@ class _PlayScreenState extends State<PlayScreen> {
                                             color: AppColors.accentBlue,
                                           ),
                                         ),
-                                        SizedBox(width: 8),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          'AI Thinking...',
-                                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                          _difficultyLevel >= 9 ? 'Minimax Depth 7...' : (_difficultyLevel >= 7 ? 'Minimax Depth 4...' : 'Minimax Calculating...'),
+                                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
