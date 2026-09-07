@@ -262,3 +262,160 @@ const Map<BoardThemeId, BoardThemeColors> BOARD_THEMES = {
     checkSquare: 0xFFDC2626,
   ),
 };
+
+class BotCharacter {
+  final int level;
+  final String name;
+  final String title;
+  final int elo;
+  final String avatar;
+  final AIPersonalityId personality;
+  final String style;
+  final String tier;
+  final String desc;
+
+  const BotCharacter({
+    required this.level,
+    required this.name,
+    required this.title,
+    required this.elo,
+    required this.avatar,
+    required this.personality,
+    required this.style,
+    required this.tier,
+    required this.desc,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'level': level,
+    'name': name,
+    'title': title,
+    'elo': elo,
+    'avatar': avatar,
+    'personality': personality,
+    'style': style,
+    'tier': tier,
+    'desc': desc,
+  };
+}
+
+const List<BotCharacter> BOT_CHARACTERS = [
+  BotCharacter(
+    level: 1,
+    name: 'Jimmy',
+    title: 'Novice Bot',
+    elo: 600,
+    avatar: '🤖',
+    personality: AIPersonalityId.balanced,
+    style: 'Casual',
+    tier: 'beginner',
+    desc: 'Overlooks hanging pieces, perfect for beginners learning basics.',
+  ),
+  BotCharacter(
+    level: 2,
+    name: 'Martin',
+    title: 'Calm Novice',
+    elo: 800,
+    avatar: '🥋',
+    personality: AIPersonalityId.balanced,
+    style: 'Beginner',
+    tier: 'beginner',
+    desc: 'Knows rules and simple checks, struggles with multi-step tactics.',
+  ),
+  BotCharacter(
+    level: 3,
+    name: 'Elena',
+    title: 'Sharp Casual',
+    elo: 1000,
+    avatar: '🎯',
+    personality: AIPersonalityId.tactical,
+    style: 'Tactical',
+    tier: 'beginner',
+    desc: 'Likes early attacks and pins, occasional tactical slips in endgames.',
+  ),
+  BotCharacter(
+    level: 4,
+    name: 'Nelson',
+    title: 'Club Novice',
+    elo: 1200,
+    avatar: '⚔️',
+    personality: AIPersonalityId.aggressive,
+    style: 'Aggressive',
+    tier: 'intermediate',
+    desc: 'Aggressive queen attacker. Punishes passive openings quickly.',
+  ),
+  BotCharacter(
+    level: 5,
+    name: 'Antonio',
+    title: 'Harmonic Intermediate',
+    elo: 1400,
+    avatar: '⚖️',
+    personality: AIPersonalityId.balanced,
+    style: 'Balanced',
+    tier: 'intermediate',
+    desc: 'Solid central control, patient development, balanced play.',
+  ),
+  BotCharacter(
+    level: 6,
+    name: 'Sofia',
+    title: 'The Architect',
+    elo: 1600,
+    avatar: '🏰',
+    personality: AIPersonalityId.positional,
+    style: 'Positional',
+    tier: 'intermediate',
+    desc: 'Locks pawn structures, targets outpost squares, strategic mastery.',
+  ),
+  BotCharacter(
+    level: 7,
+    name: 'Laura',
+    title: 'Tactical Magician',
+    elo: 1800,
+    avatar: '✨',
+    personality: AIPersonalityId.tactical,
+    style: 'Tricky',
+    tier: 'master',
+    desc: 'Constantly sets tactical traps, forks, and deflection tactics.',
+  ),
+  BotCharacter(
+    level: 8,
+    name: 'Viktor',
+    title: 'Club Master',
+    elo: 2000,
+    avatar: '🦁',
+    personality: AIPersonalityId.aggressive,
+    style: 'Grandmaster',
+    tier: 'master',
+    desc: 'Fierce calculation and strong endgame conversion.',
+  ),
+  BotCharacter(
+    level: 9,
+    name: 'Alexander',
+    title: 'International Master',
+    elo: 2200,
+    avatar: '🦅',
+    personality: AIPersonalityId.positional,
+    style: 'Master',
+    tier: 'master',
+    desc: 'Deep positional pressure, tight endgame play, and strategic mastery.',
+  ),
+  BotCharacter(
+    level: 10,
+    name: 'Magnus',
+    title: 'World Champion',
+    elo: 2500,
+    avatar: '👑',
+    personality: AIPersonalityId.balanced,
+    style: 'World Champion',
+    tier: 'master',
+    desc: 'World-champion deep iterative minimax search with quiescence horizon calculation.',
+  ),
+];
+
+BotCharacter getBotCharacter(int level) {
+  return BOT_CHARACTERS.firstWhere(
+    (b) => b.level == level,
+    orElse: () => BOT_CHARACTERS[3], // Nelson (1200) fallback
+  );
+}
+

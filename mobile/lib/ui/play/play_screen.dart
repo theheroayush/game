@@ -563,8 +563,7 @@ class _PlayScreenState extends State<PlayScreen> {
     SoundService.playVictory();
     HapticsService.vibrate();
 
-    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
-    final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
+    final bot = getBotCharacter(_difficultyLevel);
 
     final record = GameRecord(
       id: 'game_${DateTime.now().millisecondsSinceEpoch}',
@@ -578,10 +577,10 @@ class _PlayScreenState extends State<PlayScreen> {
       difficultyLevel: _difficultyLevel,
       personality: _personality,
       timeControl: _timeControl.label,
-      whitePlayer: _isPassAndPlay ? 'Player 1' : (_playerColor == PlayerColor.white ? 'Ayush' : pers.name),
-      blackPlayer: _isPassAndPlay ? 'Player 2' : (_playerColor == PlayerColor.black ? 'Ayush' : pers.name),
-      whiteElo: _playerColor == PlayerColor.white ? 1742 : diff.elo,
-      blackElo: _playerColor == PlayerColor.black ? 1742 : diff.elo,
+      whitePlayer: _isPassAndPlay ? 'Player 1' : (_playerColor == PlayerColor.white ? 'Ayush' : bot.name),
+      blackPlayer: _isPassAndPlay ? 'Player 2' : (_playerColor == PlayerColor.black ? 'Ayush' : bot.name),
+      whiteElo: _playerColor == PlayerColor.white ? 1742 : bot.elo,
+      blackElo: _playerColor == PlayerColor.black ? 1742 : bot.elo,
       movesCount: _moveSans.length,
     );
 
@@ -990,8 +989,7 @@ class _PlayScreenState extends State<PlayScreen> {
   }
 
   Widget _buildTopHeader() {
-    final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
-    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
+    final bot = getBotCharacter(_difficultyLevel);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1074,9 +1072,9 @@ class _PlayScreenState extends State<PlayScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('🤖 ', style: TextStyle(fontSize: 10)),
+                            Text(_isPassAndPlay ? '👥 ' : '${bot.avatar} ', style: const TextStyle(fontSize: 10)),
                             Text(
-                              _isPassAndPlay ? 'PASS & PLAY' : 'VS AI',
+                              _isPassAndPlay ? 'PASS & PLAY' : 'VS ${bot.name.toUpperCase()}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -1089,7 +1087,7 @@ class _PlayScreenState extends State<PlayScreen> {
                         ),
                         const SizedBox(height: 1),
                         Text(
-                          _isPassAndPlay ? '2 Players' : '${pers.name.split(' ').first} (${diff.elo})',
+                          _isPassAndPlay ? '2 Players' : '${bot.name} (${bot.elo})',
                           style: const TextStyle(
                             color: AppColors.accentBlue,
                             fontSize: 10,
@@ -1147,33 +1145,40 @@ class _PlayScreenState extends State<PlayScreen> {
   }
 
   Widget _buildPlayArea() {
-    final diff = DIFFICULTY_LEVELS.firstWhere((d) => d.level == _difficultyLevel, orElse: () => DIFFICULTY_LEVELS[3]);
-    final pers = AI_PERSONALITIES.firstWhere((p) => p.id == _personality, orElse: () => AI_PERSONALITIES[0]);
+    final bot = getBotCharacter(_difficultyLevel);
 
     final isBlackAtTop = !_flipped;
     final isWhiteTurn = _game.turn == chess.Color.WHITE;
 
     final topName = isBlackAtTop
-        ? (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : pers.name))
-        : (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : pers.name));
+        ? (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : bot.name))
+        : (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : bot.name));
     final topElo = isBlackAtTop
-        ? (_playerColor == PlayerColor.black ? 1742 : diff.elo)
-        : (_playerColor == PlayerColor.white ? 1742 : diff.elo);
+        ? (_playerColor == PlayerColor.black ? 1742 : bot.elo)
+        : (_playerColor == PlayerColor.white ? 1742 : bot.elo);
     final isTopAI = isBlackAtTop ? (_playerColor == PlayerColor.white) : (_playerColor == PlayerColor.black);
+    final topAvatar = isBlackAtTop
+        ? (_playerColor == PlayerColor.black ? '👤' : (_isPassAndPlay ? '👥' : bot.avatar))
+        : (_playerColor == PlayerColor.white ? '👤' : (_isPassAndPlay ? '👥' : bot.avatar));
     final topClockSec = isBlackAtTop ? _blackTimeSec : _whiteTimeSec;
     final isTopTurn = isBlackAtTop ? !isWhiteTurn : isWhiteTurn;
     final topCaptured = isBlackAtTop ? _blackCaptured : _whiteCaptured;
 
     final bottomName = isBlackAtTop
-        ? (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : pers.name))
-        : (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : pers.name));
+        ? (_playerColor == PlayerColor.white ? 'Ayush' : (_isPassAndPlay ? 'Player 1' : bot.name))
+        : (_playerColor == PlayerColor.black ? 'Ayush' : (_isPassAndPlay ? 'Player 2' : bot.name));
     final bottomElo = isBlackAtTop
-        ? (_playerColor == PlayerColor.white ? 1742 : diff.elo)
-        : (_playerColor == PlayerColor.black ? 1742 : diff.elo);
+        ? (_playerColor == PlayerColor.white ? 1742 : bot.elo)
+        : (_playerColor == PlayerColor.black ? 1742 : bot.elo);
     final isBottomAI = isBlackAtTop ? (_playerColor != PlayerColor.white) : (_playerColor != PlayerColor.black);
+    final bottomAvatar = isBlackAtTop
+        ? (_playerColor == PlayerColor.white ? '👤' : (_isPassAndPlay ? '👥' : bot.avatar))
+        : (_playerColor == PlayerColor.black ? '👤' : (_isPassAndPlay ? '👥' : bot.avatar));
     final bottomClockSec = isBlackAtTop ? _whiteTimeSec : _blackTimeSec;
     final isBottomTurn = isBlackAtTop ? isWhiteTurn : !isWhiteTurn;
     final bottomCaptured = isBlackAtTop ? _whiteCaptured : _blackCaptured;
+
+    final thinkingName = (isTopTurn && isTopAI) ? topName : (isBottomTurn && isBottomAI ? bottomName : bot.name);
 
     return Column(
       children: [
@@ -1182,7 +1187,7 @@ class _PlayScreenState extends State<PlayScreen> {
           name: topName,
           elo: topElo,
           isAI: isTopAI,
-          aiAvatar: pers.avatar,
+          aiAvatar: topAvatar,
           pieceColor: isBlackAtTop ? 'b' : 'w',
           isActive: isTopTurn,
           isThinking: _isAIThinking && isTopTurn && isTopAI,
@@ -1245,21 +1250,27 @@ class _PlayScreenState extends State<PlayScreen> {
                                 Positioned(
                                   top: 14,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                     decoration: BoxDecoration(
-                                      color: AppColors.dark.withAlpha(240),
+                                      color: AppColors.dark.withAlpha(245),
                                       borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: AppColors.accentBlue),
+                                      border: Border.all(color: AppColors.accentBlue, width: 1.2),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppColors.accentBlue.withAlpha(60),
-                                          blurRadius: 10,
+                                          color: AppColors.accentBlue.withAlpha(70),
+                                          blurRadius: 12,
+                                          spreadRadius: 1,
                                         ),
                                       ],
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                        Text(
+                                          bot.avatar,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        const SizedBox(width: 6),
                                         const SizedBox(
                                           width: 12,
                                           height: 12,
@@ -1270,8 +1281,13 @@ class _PlayScreenState extends State<PlayScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          _difficultyLevel >= 9 ? 'Minimax Depth 7...' : (_difficultyLevel >= 7 ? 'Minimax Depth 4...' : 'Minimax Calculating...'),
-                                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                          '$thinkingName is thinking...',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.2,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1294,10 +1310,10 @@ class _PlayScreenState extends State<PlayScreen> {
           name: bottomName,
           elo: bottomElo,
           isAI: isBottomAI,
-          aiAvatar: pers.avatar,
+          aiAvatar: bottomAvatar,
           pieceColor: isBlackAtTop ? 'w' : 'b',
           isActive: isBottomTurn,
-          isThinking: false,
+          isThinking: _isAIThinking && isBottomTurn && isBottomAI,
           timeLeftSeconds: bottomClockSec,
           hasClock: _timeControl.baseMinutes > 0,
           capturedPieces: bottomCaptured,
