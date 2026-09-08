@@ -15,20 +15,23 @@ void main() {
       }
     });
 
-    test('Novice bots (600-800 Elo) have high noise, high temperature, and shallow book', () {
+    test('Novice bots (600-800 Elo) have controlled noise, safe temperature, and quiescence enabled', () {
       final jimmy = DIFFICULTY_LEVELS.firstWhere((d) => d.level == 1);
       final martin = DIFFICULTY_LEVELS.firstWhere((d) => d.level == 2);
 
       expect(jimmy.elo, 600);
-      expect(jimmy.evalNoise, greaterThanOrEqualTo(300));
-      expect(jimmy.temperature, greaterThanOrEqualTo(300.0));
+      expect(jimmy.evalNoise, lessThanOrEqualTo(60));
+      expect(jimmy.temperature, lessThanOrEqualTo(40.0));
       expect(jimmy.bookMaxPlies, lessThanOrEqualTo(2));
-      expect(jimmy.useQuiescence, isFalse);
+      expect(jimmy.useQuiescence, isTrue);
+      expect(jimmy.depth, greaterThanOrEqualTo(2));
 
       expect(martin.elo, 800);
-      expect(martin.evalNoise, greaterThanOrEqualTo(200));
-      expect(martin.temperature, greaterThanOrEqualTo(200.0));
+      expect(martin.evalNoise, lessThanOrEqualTo(50));
+      expect(martin.temperature, lessThanOrEqualTo(30.0));
       expect(martin.bookMaxPlies, lessThanOrEqualTo(3));
+      expect(martin.useQuiescence, isTrue);
+      expect(martin.depth, greaterThanOrEqualTo(3));
     });
 
     test('Master bots (2000-2500 Elo) have zero noise, tight temperature, and deep search', () {
@@ -51,9 +54,11 @@ void main() {
     test('Nelson (1200 Elo) is configured with aggressive queen sorties', () {
       final nelson = DIFFICULTY_LEVELS.firstWhere((d) => d.level == 4);
       expect(nelson.elo, 1200);
-      expect(nelson.temperature, inInclusiveRange(70.0, 110.0));
-      expect(nelson.evalNoise, inInclusiveRange(60, 100));
+      expect(nelson.temperature, inInclusiveRange(5.0, 20.0));
+      expect(nelson.evalNoise, inInclusiveRange(10, 30));
       expect(nelson.bookMaxPlies, inInclusiveRange(4, 8));
+      expect(nelson.depth, greaterThanOrEqualTo(4));
+      expect(nelson.useQuiescence, isTrue);
     });
   });
 

@@ -63,6 +63,19 @@ bool _allowsImmediateMate(chess.Chess baseGame, Map<String, dynamic> move) {
   return false;
 }
 
+/// Material safety threshold per level.
+/// A move is "safe" if its score is within this threshold of the best move.
+/// This prevents the engine from ever dropping a piece for free.
+int _safetyThreshold(int level) {
+  // Lower levels allow slightly wider positional variance but NEVER piece-drops.
+  // A pawn = 100cp, a minor piece = 325cp. We want to allow small positional
+  // inaccuracies but never dropping a full piece.
+  if (level <= 2) return 80;  // Allow up to ~0.8 pawn positional slip
+  if (level <= 4) return 50;  // Allow up to ~0.5 pawn slip
+  if (level <= 6) return 25;  // Very tight
+  return 10;                   // Nearly deterministic
+}
+
 // Top-level worker function executed in background Dart Isolate
 AIMoveResponse computeAIMove(AIMoveRequest request) {
   final game = chess.Chess.fromFEN(request.fen);
@@ -75,7 +88,6 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
   // 1. Opening theory retrieval (biases root search ordering, NEVER short-circuits Minimax)
   String? bookMoveSan;
   if (request.moveSans.length < diff.bookMaxPlies) {
-    // For novice bots (Level 1 Jimmy), chance to leave book early for natural beginner play
     final useBook = diff.level > 1 || Random().nextDouble() < 0.45;
     if (useBook) {
       final opening = findBookOpeningForMoves(request.moveSans);
@@ -114,15 +126,32 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
 
   Map<String, dynamic>? chosen;
 
-  // For Grandmaster and high-tier bots (Level >= 8 or 0.0 temperature), strictly play Minimax-verified best move
+  // For deterministic high-tier bots (Level >= 8 or T=0), strictly play best move
   if (diff.level >= 8 || diff.temperature == 0.0) {
     chosen = searchResult.bestMove;
   } else {
-    // 3. Boltzmann (Softmax) Move Selection & Evaluation Noise Injection for lower Elos
-    final scoredCandidates = rootMoves.map((sm) {
+    // 3. Material Safety Gate: filter root moves to only "safe" candidates
+    //    whose score is within threshold of the best move.
+    //    This PREVENTS the engine from ever dropping a piece for free.
+    final bestScore = isWhite
+        ? rootMoves.map((m) => m.score).reduce(max)
+        : rootMoves.map((m) => m.score).reduce(min);
+    final threshold = _safetyThreshold(diff.level);
+
+    final safeMoves = rootMoves.where((sm) {
+      final delta = isWhite
+          ? (bestScore - sm.score)
+          : (sm.score - bestScore);
+      return delta <= threshold;
+    }).toList();
+
+    // Fallback: if somehow no safe moves (shouldn't happen), use all
+    final candidates = safeMoves.isNotEmpty ? safeMoves : rootMoves.toList();
+
+    // 4. Apply noise ONLY within the safe candidate pool
+    final scoredCandidates = candidates.map((sm) {
       double noisyScore = sm.score.toDouble();
       if (diff.evalNoise > 0) {
-        // 3-uniform sum approximation of Gaussian noise N(0, evalNoise^2)
         final r1 = Random().nextDouble();
         final r2 = Random().nextDouble();
         final r3 = Random().nextDouble();
@@ -132,25 +161,23 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
       return MapEntry(sm.move, noisyScore);
     }).toList();
 
-    // Sort candidates by noisy score: highest first for White, lowest first for Black
     scoredCandidates.sort((a, b) {
       return isWhite ? b.value.compareTo(a.value) : a.value.compareTo(b.value);
     });
 
-    // 4. Humanized Blunder / Tactical Oversight for Novices
+    // 5. Safe Blunder: occasionally pick 2nd-best from the SAFE pool
+    //    (guaranteed to not hang material since all candidates are within threshold)
     if (diff.blunderProbability > 0 && Random().nextDouble() < diff.blunderProbability && scoredCandidates.length > 1) {
-      // Pick an inferior move (small positional inaccuracy or oversight)
-      final candidateSlice = scoredCandidates.skip(1).take(min(3, scoredCandidates.length - 1)).toList();
-      if (candidateSlice.isNotEmpty) {
-        // Evasion: filter out moves that hang immediate mate-in-1 if alternatives exist
-        final nonMating = candidateSlice.where((e) => !_allowsImmediateMate(game, e.key)).toList();
-        if (nonMating.isNotEmpty) {
-          chosen = nonMating[Random().nextInt(nonMating.length)].key;
-        }
+      // Pick a random move from positions 2-4 in the safe pool
+      final blunderPool = scoredCandidates.skip(1).take(min(3, scoredCandidates.length - 1)).toList();
+      // Extra safety: filter out moves allowing immediate mate
+      final nonMating = blunderPool.where((e) => !_allowsImmediateMate(game, e.key)).toList();
+      if (nonMating.isNotEmpty) {
+        chosen = nonMating[Random().nextInt(nonMating.length)].key;
       }
     }
 
-    // If no blunder triggered or blunder was filtered, sample using Boltzmann temperature distribution
+    // 6. Boltzmann temperature selection within safe pool
     if (chosen == null) {
       if (diff.temperature <= 2.0 || scoredCandidates.length == 1) {
         chosen = scoredCandidates.first.key;
@@ -158,7 +185,6 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
         final bestVal = scoredCandidates.first.value;
         final temp = max(1.0, diff.temperature);
 
-        // Compute unnormalized Boltzmann weights: exp(-delta / T)
         final weights = <double>[];
         double sumWeights = 0.0;
         for (final entry in scoredCandidates) {

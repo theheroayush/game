@@ -98,6 +98,18 @@ int getSquareIndex(String square, chess.Color color) {
   }
 }
 
+/// Derive the moving piece type string from either the move map or the board.
+/// package:chess verbose moves do NOT populate a 'piece' field, so we fall back
+/// to reading the piece directly from the board at the 'from' square.
+String _movingPieceType(Map<String, dynamic> move, chess.Chess game) {
+  final p = move['piece']?.toString();
+  if (p != null && p.isNotEmpty) return p.toLowerCase();
+  final fromSq = move['from']?.toString() ?? '';
+  if (fromSq.isEmpty) return '';
+  final piece = game.get(fromSq);
+  return piece?.type.name.toLowerCase() ?? '';
+}
+
 int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonalityId.balanced]) {
   if (game.in_checkmate) {
     return game.turn == chess.Color.WHITE ? -99999 : 99999;
@@ -194,13 +206,33 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
         final rightCount = file < 7 ? (isW ? whitePawnFiles[file + 1] : blackPawnFiles[file + 1]) : 0;
         if (leftCount == 0 && rightCount == 0) positionalBonus -= 18; // Isolated pawn
 
-        // Passed Pawn bonus
+        // Passed Pawn bonus - check only opponent pawns AHEAD of this pawn
         bool isPassed = true;
-        final oppFiles = isW ? blackPawnFiles : whitePawnFiles;
-        for (int df = max(0, file - 1); df <= min(7, file + 1); df++) {
-          if (oppFiles[df] > 0) {
-            isPassed = false;
-            break;
+        if (isW) {
+          // White pawn: check ranks above (rank+1 to 8) on adjacent files
+          for (int df = max(0, file - 1); df <= min(7, file + 1); df++) {
+            for (int checkRank = rank + 1; checkRank <= 8; checkRank++) {
+              final checkSq = String.fromCharCode('a'.codeUnitAt(0) + df) + checkRank.toString();
+              final checkPiece = game.get(checkSq);
+              if (checkPiece != null && checkPiece.color == chess.Color.BLACK && checkPiece.type.name.toLowerCase() == 'p') {
+                isPassed = false;
+                break;
+              }
+            }
+            if (!isPassed) break;
+          }
+        } else {
+          // Black pawn: check ranks below (rank-1 to 1) on adjacent files
+          for (int df = max(0, file - 1); df <= min(7, file + 1); df++) {
+            for (int checkRank = rank - 1; checkRank >= 1; checkRank--) {
+              final checkSq = String.fromCharCode('a'.codeUnitAt(0) + df) + checkRank.toString();
+              final checkPiece = game.get(checkSq);
+              if (checkPiece != null && checkPiece.color == chess.Color.WHITE && checkPiece.type.name.toLowerCase() == 'p') {
+                isPassed = false;
+                break;
+              }
+            }
+            if (!isPassed) break;
           }
         }
         if (isPassed) {
@@ -301,7 +333,11 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   // Personality adjustments
   int personalityMod = 0;
   if (personality == AIPersonalityId.aggressive) {
-    personalityMod += (whiteMaterial > blackMaterial ? 40 : -40);
+    if (whiteMaterial > blackMaterial) {
+      personalityMod += 40;
+    } else if (blackMaterial > whiteMaterial) {
+      personalityMod -= 40;
+    }
     if (game.in_check) {
       personalityMod += game.turn == chess.Color.BLACK ? 65 : -65;
     }
@@ -360,8 +396,8 @@ int quiescence(
     captureMoves.sort((a, b) {
       final aCaptured = a['captured']?.toString() ?? '';
       final bCaptured = b['captured']?.toString() ?? '';
-      final aVal = (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[a['piece']?.toString() ?? ''] ?? 0);
-      final bVal = (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[b['piece']?.toString() ?? ''] ?? 0);
+      final aVal = (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(a, game)] ?? 0);
+      final bVal = (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(b, game)] ?? 0);
       return bVal.compareTo(aVal);
     });
 
@@ -395,8 +431,8 @@ int quiescence(
     captureMoves.sort((a, b) {
       final aCaptured = a['captured']?.toString() ?? '';
       final bCaptured = b['captured']?.toString() ?? '';
-      final aVal = (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[a['piece']?.toString() ?? ''] ?? 0);
-      final bVal = (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[b['piece']?.toString() ?? ''] ?? 0);
+      final aVal = (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(a, game)] ?? 0);
+      final bVal = (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(b, game)] ?? 0);
       return bVal.compareTo(aVal);
     });
 
@@ -564,8 +600,8 @@ MinimaxResult minimax(
     // 2. Captures MVV-LVA
     final aCaptured = a['captured']?.toString() ?? '';
     final bCaptured = b['captured']?.toString() ?? '';
-    if (aCaptured.isNotEmpty) aScore += (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[a['piece']?.toString() ?? ''] ?? 0) + 10000;
-    if (bCaptured.isNotEmpty) bScore += (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[b['piece']?.toString() ?? ''] ?? 0) + 10000;
+    if (aCaptured.isNotEmpty) aScore += (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(a, game)] ?? 0) + 10000;
+    if (bCaptured.isNotEmpty) bScore += (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(b, game)] ?? 0) + 10000;
 
     if (a['flags'].toString().contains('p')) aScore += 9000;
     if (b['flags'].toString().contains('p')) bScore += 9000;
@@ -799,8 +835,6 @@ SearchResult searchBestMoveIterative(
       break;
     }
 
-    int alpha = -999999;
-    int beta = 999999;
     bool iterationInterrupted = false;
     final iterationScoredMoves = <ScoredMove>[];
 
@@ -820,12 +854,18 @@ SearchResult searchBestMoveIterative(
         break;
       }
 
+      // Search each root move with a FULL window so every root score is the
+      // true minimax value, not a fail-low/fail-high bound.  This is critical
+      // because lower-level bots use Boltzmann/noise selection on rootMoves —
+      // if a move that hangs the Queen gets a fail-low score of +80 instead
+      // of its true -900, the probabilistic selector treats it as nearly equal
+      // to the best move.
       game.move(move);
       final res = minimax(
         game,
         d - 1,
-        alpha,
-        beta,
+        -999999,
+        999999,
         !isMaximizing,
         personality: personality,
         useQuiescence: useQuiescence,
@@ -847,17 +887,18 @@ SearchResult searchBestMoveIterative(
           currentDepthBestScore = res.score;
           currentDepthBestMove = move;
         }
-        alpha = max(alpha, res.score);
       } else {
         if (res.score < currentDepthBestScore) {
           currentDepthBestScore = res.score;
           currentDepthBestMove = move;
         }
-        beta = min(beta, res.score);
       }
     }
 
-    // Only commit if iteration fully evaluated all root moves!
+    // Only commit if iteration fully evaluated ALL root moves at this depth.
+    // Partial iterations are DISCARDED — mixing scores from different depths
+    // creates apples-to-oranges comparisons that cause the engine to play
+    // refuted moves whose stale scores look artificially good.
     if (!iterationInterrupted && currentDepthBestMove != null && iterationScoredMoves.length == rootCandidates.length) {
       iterationScoredMoves.sort((a, b) {
         return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
@@ -873,26 +914,12 @@ SearchResult searchBestMoveIterative(
       for (final sm in iterationScoredMoves) {
         currentOrderedMoves.add(sm.move);
       }
-    } else if (iterationInterrupted && iterationScoredMoves.isNotEmpty && completedRootMoves.isNotEmpty) {
-      // Partial iteration preservation: update root moves with newly evaluated scores
-      final updatedMap = <String, ScoredMove>{};
-      for (final sm in completedRootMoves) {
-        updatedMap['${sm.move['from']}_${sm.move['to']}'] = sm;
-      }
-      for (final sm in iterationScoredMoves) {
-        updatedMap['${sm.move['from']}_${sm.move['to']}'] = sm;
-      }
-      final mergedList = updatedMap.values.toList();
-      mergedList.sort((a, b) {
-        return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
-      });
-      if (mergedList.isNotEmpty) {
-        completedBestMove = mergedList.first.move;
-        completedScore = mergedList.first.score;
-        completedRootMoves = mergedList;
-      }
+    } else if (iterationInterrupted && completedRootMoves.isNotEmpty) {
+      // Interrupted — keep using the last fully completed depth's results.
+      // DO NOT merge partial scores from different depths.
+      break;
     } else if (d == 1 && iterationScoredMoves.isNotEmpty) {
-      // Ensure at least depth 1 has data
+      // Ensure at least depth 1 has data even if partially interrupted
       iterationScoredMoves.sort((a, b) {
         return isMaximizing ? b.score.compareTo(a.score) : a.score.compareTo(b.score);
       });
