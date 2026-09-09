@@ -847,6 +847,8 @@ SearchResult searchBestMoveIterative(
 
     Map<String, dynamic>? currentDepthBestMove;
     int currentDepthBestScore = isMaximizing ? -999999 : 999999;
+    int alpha = -999999;
+    int beta = 999999;
 
     for (final move in currentOrderedMoves) {
       if (DateTime.now().millisecondsSinceEpoch >= deadline && d > 1) {
@@ -854,18 +856,12 @@ SearchResult searchBestMoveIterative(
         break;
       }
 
-      // Search each root move with a FULL window so every root score is the
-      // true minimax value, not a fail-low/fail-high bound.  This is critical
-      // because lower-level bots use Boltzmann/noise selection on rootMoves —
-      // if a move that hangs the Queen gets a fail-low score of +80 instead
-      // of its true -900, the probabilistic selector treats it as nearly equal
-      // to the best move.
       game.move(move);
       final res = minimax(
         game,
         d - 1,
-        -999999,
-        999999,
+        alpha,
+        beta,
         !isMaximizing,
         personality: personality,
         useQuiescence: useQuiescence,
@@ -887,11 +883,13 @@ SearchResult searchBestMoveIterative(
           currentDepthBestScore = res.score;
           currentDepthBestMove = move;
         }
+        alpha = max(alpha, res.score);
       } else {
         if (res.score < currentDepthBestScore) {
           currentDepthBestScore = res.score;
           currentDepthBestMove = move;
         }
+        beta = min(beta, res.score);
       }
     }
 

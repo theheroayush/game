@@ -47,33 +47,54 @@ String? _formatPromotion(dynamic promo) {
   return str[0];
 }
 
-bool _allowsImmediateMate(chess.Chess baseGame, Map<String, dynamic> move) {
+
+/// Check if a candidate move hangs significant material.
+/// Returns the net material loss in centipawns if the opponent can immediately
+/// capture a piece worth more than what was captured.
+/// Returns 0 if the move is safe, or a positive value indicating how much material is lost.
+int _materialLoss(chess.Chess baseGame, Map<String, dynamic> move) {
   try {
     final temp = chess.Chess.fromFEN(baseGame.fen);
     final moved = temp.move(move);
-    if (!moved) return false;
+    if (!moved) return 0;
+
+    // What did we capture on this move?
+    final captured = move['captured']?.toString() ?? '';
+    final capturedValue = _pieceVal(captured);
+
+
+    // Now check: can the opponent immediately recapture on the 'to' square
+    // with a piece worth less than what we moved there?
+    int worstLoss = 0;
     final oppMoves = temp.moves({'verbose': true});
     for (final om in oppMoves) {
-      final map = om as Map<String, dynamic>;
-      if (map['san'].toString().contains('#')) {
-        return true;
+      final oMap = om as Map<String, dynamic>;
+      final oCaptured = oMap['captured']?.toString() ?? '';
+      if (oCaptured.isEmpty) continue;
+
+      // Opponent captures our piece on 'to' square (or anywhere else)
+      final oCapturedValue = _pieceVal(oCaptured);
+      if (oCapturedValue > capturedValue) {
+        // Net loss: we gained capturedValue but lost oCapturedValue
+        final netLoss = oCapturedValue - capturedValue;
+        if (netLoss > worstLoss) worstLoss = netLoss;
       }
     }
+    return worstLoss;
   } catch (_) {}
-  return false;
+  return 0;
 }
 
-/// Material safety threshold per level.
-/// A move is "safe" if its score is within this threshold of the best move.
-/// This prevents the engine from ever dropping a piece for free.
-int _safetyThreshold(int level) {
-  // Lower levels allow slightly wider positional variance but NEVER piece-drops.
-  // A pawn = 100cp, a minor piece = 325cp. We want to allow small positional
-  // inaccuracies but never dropping a full piece.
-  if (level <= 2) return 80;  // Allow up to ~0.8 pawn positional slip
-  if (level <= 4) return 50;  // Allow up to ~0.5 pawn slip
-  if (level <= 6) return 25;  // Very tight
-  return 10;                   // Nearly deterministic
+int _pieceVal(String p) {
+  switch (p) {
+    case 'p': case 'pawn': return 100;
+    case 'n': case 'knight': return 325;
+    case 'b': case 'bishop': return 335;
+    case 'r': case 'rook': return 500;
+    case 'q': case 'queen': return 900;
+    case 'k': case 'king': return 20000;
+    default: return 0;
+  }
 }
 
 // Top-level worker function executed in background Dart Isolate
@@ -85,7 +106,7 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
   );
   final bool isWhite = game.turn == chess.Color.WHITE;
 
-  // 1. Opening theory retrieval (biases root search ordering, NEVER short-circuits Minimax)
+  // 1. Opening theory retrieval (biases root search ordering)
   String? bookMoveSan;
   if (request.moveSans.length < diff.bookMaxPlies) {
     final useBook = diff.level > 1 || Random().nextDouble() < 0.45;
@@ -124,92 +145,38 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
     );
   }
 
-  Map<String, dynamic>? chosen;
+  // 3. ALWAYS play the minimax-verified best move.
+  //    Difficulty scaling is achieved through search depth alone:
+  //    - Level 1 (depth 2) naturally misses deep tactics
+  //    - Level 10 (depth 8) plays near-perfect chess
+  //    No noise, temperature, or blunder injection — those caused the AI
+  //    to trade Queens for pawns by overriding the engine's correct evaluation.
+  Map<String, dynamic> chosen = searchResult.bestMove ?? rootMoves.first.move;
 
-  // For deterministic high-tier bots (Level >= 8 or T=0), strictly play best move
-  if (diff.level >= 8 || diff.temperature == 0.0) {
-    chosen = searchResult.bestMove;
-  } else {
-    // 3. Material Safety Gate: filter root moves to only "safe" candidates
-    //    whose score is within threshold of the best move.
-    //    This PREVENTS the engine from ever dropping a piece for free.
-    final bestScore = isWhite
-        ? rootMoves.map((m) => m.score).reduce(max)
-        : rootMoves.map((m) => m.score).reduce(min);
-    final threshold = _safetyThreshold(diff.level);
-
-    final safeMoves = rootMoves.where((sm) {
-      final delta = isWhite
-          ? (bestScore - sm.score)
-          : (sm.score - bestScore);
-      return delta <= threshold;
-    }).toList();
-
-    // Fallback: if somehow no safe moves (shouldn't happen), use all
-    final candidates = safeMoves.isNotEmpty ? safeMoves : rootMoves.toList();
-
-    // 4. Apply noise ONLY within the safe candidate pool
-    final scoredCandidates = candidates.map((sm) {
-      double noisyScore = sm.score.toDouble();
-      if (diff.evalNoise > 0) {
-        final r1 = Random().nextDouble();
-        final r2 = Random().nextDouble();
-        final r3 = Random().nextDouble();
-        final z = (r1 + r2 + r3 - 1.5) * 1.63299;
-        noisyScore += z * diff.evalNoise;
-      }
-      return MapEntry(sm.move, noisyScore);
-    }).toList();
-
-    scoredCandidates.sort((a, b) {
-      return isWhite ? b.value.compareTo(a.value) : a.value.compareTo(b.value);
-    });
-
-    // 5. Safe Blunder: occasionally pick 2nd-best from the SAFE pool
-    //    (guaranteed to not hang material since all candidates are within threshold)
-    if (diff.blunderProbability > 0 && Random().nextDouble() < diff.blunderProbability && scoredCandidates.length > 1) {
-      // Pick a random move from positions 2-4 in the safe pool
-      final blunderPool = scoredCandidates.skip(1).take(min(3, scoredCandidates.length - 1)).toList();
-      // Extra safety: filter out moves allowing immediate mate
-      final nonMating = blunderPool.where((e) => !_allowsImmediateMate(game, e.key)).toList();
-      if (nonMating.isNotEmpty) {
-        chosen = nonMating[Random().nextInt(nonMating.length)].key;
+  // 4. Final material safety verification:
+  //    Even the minimax best move could hang material if search depth was
+  //    insufficient (e.g. depth 2 missing a 3-move tactic). Check if the
+  //    chosen move allows the opponent to immediately win material.
+  final loss = _materialLoss(game, chosen);
+  if (loss >= 200) {
+    // The "best" move hangs significant material (opponent can immediately
+    // capture a piece worth 200+ cp more than what we captured).
+    // Search rootMoves for a safer alternative.
+    Map<String, dynamic>? safestMove;
+    int lowestLoss = loss;
+    for (final sm in rootMoves) {
+      final mLoss = _materialLoss(game, sm.move);
+      if (mLoss < lowestLoss) {
+        lowestLoss = mLoss;
+        safestMove = sm.move;
       }
     }
-
-    // 6. Boltzmann temperature selection within safe pool
-    if (chosen == null) {
-      if (diff.temperature <= 2.0 || scoredCandidates.length == 1) {
-        chosen = scoredCandidates.first.key;
-      } else {
-        final bestVal = scoredCandidates.first.value;
-        final temp = max(1.0, diff.temperature);
-
-        final weights = <double>[];
-        double sumWeights = 0.0;
-        for (final entry in scoredCandidates) {
-          final delta = (entry.value - bestVal).abs();
-          final weight = exp(-delta / temp);
-          weights.add(weight);
-          sumWeights += weight;
-        }
-
-        if (sumWeights > 0) {
-          double roll = Random().nextDouble() * sumWeights;
-          for (int i = 0; i < scoredCandidates.length; i++) {
-            roll -= weights[i];
-            if (roll <= 0) {
-              chosen = scoredCandidates[i].key;
-              break;
-            }
-          }
-        }
-        chosen ??= scoredCandidates.first.key;
-      }
+    if (safestMove != null && lowestLoss < loss) {
+      chosen = safestMove;
     }
   }
 
-  final Map<String, dynamic> chosenMove = chosen ?? searchResult.bestMove ?? rootMoves.first.move;
+  final Map<String, dynamic> chosenMove = chosen;
   String? promo = _formatPromotion(chosenMove['promotion']);
   final piece = game.get(chosenMove['from'].toString());
   final toSq = chosenMove['to'].toString();
