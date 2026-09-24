@@ -79,16 +79,6 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
 
       let chosenMove: Move | undefined = result.bestMove;
 
-      // 3. Humanize engine for lower Elo levels (Controlled Suboptimal Selection)
-      if (diff.blunderProbability > 0 && Math.random() < diff.blunderProbability) {
-        const legalMoves = chess.moves({ verbose: true });
-        if (legalMoves.length > 1) {
-          // Pick a random legal move from top alternatives
-          const randomIndex = Math.floor(Math.random() * Math.min(legalMoves.length, 3));
-          chosenMove = legalMoves[randomIndex];
-        }
-      }
-
       if (!chosenMove) {
         const moves = chess.moves({ verbose: true });
         chosenMove = moves[0];

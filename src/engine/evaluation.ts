@@ -237,7 +237,71 @@ export function evaluatePosition(chess: Chess, personality: AIPersonalityId = 'b
   return whiteScore - blackScore + personalityMod;
 }
 
-// Quiescence Search with Delta Pruning to prevent horizon effect
+// Static Exchange Evaluation (SEE)
+export function staticExchangeEvaluation(chess: Chess, move: Move): number {
+  const targetSq = move.to;
+  const initialHistoryLen = chess.history().length;
+
+  const capturedPiece = chess.get(targetSq);
+  const isEnPassant = move.flags.includes('e');
+  const v0 = isEnPassant
+    ? PIECE_VALUES['p']
+    : (capturedPiece ? (PIECE_VALUES[capturedPiece.type] || 0) : 0);
+
+  const movingVal = PIECE_VALUES[move.piece] || 0;
+
+  try {
+    const executed = chess.move(move);
+    if (!executed) return 0;
+  } catch {
+    return 0;
+  }
+
+  const gain: number[] = [v0];
+  const pieceValues: number[] = [movingVal];
+
+  try {
+    while (true) {
+      const legalMoves = chess.moves({ verbose: true });
+      let smallestAttacker: Move | null = null;
+      let smallestVal = 999999;
+
+      for (const m of legalMoves) {
+        if (m.to === targetSq) {
+          const pVal = PIECE_VALUES[m.piece] || 0;
+          if (pVal < smallestVal) {
+            smallestVal = pVal;
+            smallestAttacker = m;
+          }
+        }
+      }
+
+      if (!smallestAttacker) break;
+
+      gain.push(pieceValues[pieceValues.length - 1]);
+      pieceValues.push(smallestVal);
+
+      try {
+        const ok = chess.move(smallestAttacker);
+        if (!ok) break;
+      } catch {
+        break;
+      }
+    }
+  } finally {
+    while (chess.history().length > initialHistoryLen) {
+      chess.undo();
+    }
+  }
+
+  let currentNet = 0;
+  for (let i = gain.length - 1; i >= 1; i--) {
+    currentNet = Math.max(0, gain[i] - currentNet);
+  }
+  return gain[0] - currentNet;
+}
+
+// Quiescence Search with Delta Pruning and SEE pruning
 export function quiescence(
   chess: Chess,
   alpha: number,
@@ -262,7 +326,13 @@ export function quiescence(
       return alpha;
     }
 
-    const captureMoves = chess.moves({ verbose: true }).filter(m => m.captured || m.promotion);
+    const captureMoves = chess.moves({ verbose: true }).filter(m => {
+      if (m.promotion) return true;
+      if (m.captured) {
+        return staticExchangeEvaluation(chess, m) >= 0;
+      }
+      return false;
+    });
     if (captureMoves.length === 0) return standPat;
 
     // MVV-LVA move ordering for captures
@@ -289,7 +359,13 @@ export function quiescence(
       return beta;
     }
 
-    const captureMoves = chess.moves({ verbose: true }).filter(m => m.captured || m.promotion);
+    const captureMoves = chess.moves({ verbose: true }).filter(m => {
+      if (m.promotion) return true;
+      if (m.captured) {
+        return staticExchangeEvaluation(chess, m) >= 0;
+      }
+      return false;
+    });
     if (captureMoves.length === 0) return standPat;
 
     captureMoves.sort((a, b) => {

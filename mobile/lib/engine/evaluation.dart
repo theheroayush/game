@@ -110,6 +110,68 @@ String _movingPieceType(Map<String, dynamic> move, chess.Chess game) {
   return piece?.type.name.toLowerCase() ?? '';
 }
 
+/// Static Exchange Evaluation (SEE)
+/// Calculates the net material outcome after a sequence of captures on a target square.
+/// Returns score in centipawns:
+/// > 0: Winning capture / trade (e.g. Pawn takes Queen -> +800)
+/// = 0: Neutral trade (e.g. Knight takes defended Knight -> 0, or safe move)
+/// < 0: Losing capture / hung piece (e.g. Queen takes defended Pawn -> -800)
+int staticExchangeEvaluation(chess.Chess game, Map<String, dynamic> move) {
+  final targetSq = move['to'].toString();
+  final initialHistoryLen = game.history.length;
+
+  final capturedPiece = game.get(targetSq);
+  final isEnPassant = move['flags'].toString().contains('e');
+  final int v0 = isEnPassant
+      ? (PIECE_VALUES['p'] ?? 100)
+      : (capturedPiece != null ? (PIECE_VALUES[capturedPiece.type.name.toLowerCase()] ?? 0) : 0);
+
+  final movingPieceStr = _movingPieceType(move, game);
+  final int movingVal = PIECE_VALUES[movingPieceStr] ?? 0;
+
+  if (!game.move(move)) return 0;
+
+  final gain = <int>[v0];
+  final pieceValues = <int>[movingVal];
+
+  try {
+    while (true) {
+      final legalMoves = game.moves({'verbose': true});
+      Map<String, dynamic>? smallestAttacker;
+      int smallestVal = 999999;
+
+      for (final m in legalMoves) {
+        final map = m as Map<String, dynamic>;
+        if (map['to'] == targetSq) {
+          final pStr = _movingPieceType(map, game);
+          final pVal = PIECE_VALUES[pStr] ?? 0;
+          if (pVal < smallestVal) {
+            smallestVal = pVal;
+            smallestAttacker = map;
+          }
+        }
+      }
+
+      if (smallestAttacker == null) break;
+
+      gain.add(pieceValues.last);
+      pieceValues.add(smallestVal);
+
+      if (!game.move(smallestAttacker)) break;
+    }
+  } finally {
+    while (game.history.length > initialHistoryLen) {
+      game.undo();
+    }
+  }
+
+  int currentNet = 0;
+  for (int i = gain.length - 1; i >= 1; i--) {
+    currentNet = max(0, gain[i] - currentNet);
+  }
+  return gain[0] - currentNet;
+}
+
 int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonalityId.balanced]) {
   if (game.in_checkmate) {
     return game.turn == chess.Color.WHITE ? -99999 : 99999;
@@ -124,6 +186,12 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   int blackMaterial = 0;
   int whiteBishops = 0;
   int blackBishops = 0;
+  int whiteKnights = 0;
+  int blackKnights = 0;
+  int whiteRooks = 0;
+  int blackRooks = 0;
+  int whiteQueens = 0;
+  int blackQueens = 0;
 
   final whitePawnFiles = List<int>.filled(8, 0);
   final blackPawnFiles = List<int>.filled(8, 0);
@@ -147,11 +215,29 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
         } else {
           blackPawnFiles[file]++;
         }
+      } else if (pType == 'n') {
+        if (isW) {
+          whiteKnights++;
+        } else {
+          blackKnights++;
+        }
       } else if (pType == 'b') {
         if (isW) {
           whiteBishops++;
         } else {
           blackBishops++;
+        }
+      } else if (pType == 'r') {
+        if (isW) {
+          whiteRooks++;
+        } else {
+          blackRooks++;
+        }
+      } else if (pType == 'q') {
+        if (isW) {
+          whiteQueens++;
+        } else {
+          blackQueens++;
         }
       } else if (pType == 'k') {
         if (isW) {
@@ -171,7 +257,14 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
     }
   }
 
-  final bool isEndgame = whiteMaterial < 1500 && blackMaterial < 1500;
+  // Game phase: N:1, B:1, R:2, Q:4 (Total starting = 24)
+  final int gamePhase = (whiteKnights + blackKnights) * 1 +
+      (whiteBishops + blackBishops) * 1 +
+      (whiteRooks + blackRooks) * 2 +
+      (whiteQueens + blackQueens) * 4;
+  final int mgWeight = min(24, max(0, gamePhase));
+  final int egWeight = 24 - mgWeight;
+  final bool isEndgame = mgWeight < 10;
 
   // Second pass: Positional evaluation
   for (int rank = 1; rank <= 8; rank++) {
@@ -192,10 +285,59 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
         case 'b': pstVal = BISHOP_PST[sqIdx]; break;
         case 'r': pstVal = ROOK_PST[sqIdx]; break;
         case 'q': pstVal = QUEEN_PST[sqIdx]; break;
-        case 'k': pstVal = isEndgame ? KING_ENDGAME_PST[sqIdx] : KING_MIDGAME_PST[sqIdx]; break;
+        case 'k':
+          pstVal = (KING_MIDGAME_PST[sqIdx] * mgWeight + KING_ENDGAME_PST[sqIdx] * egWeight) ~/ 24;
+          break;
       }
 
       int positionalBonus = 0;
+
+      // Attacked piece penalty (Queen/Rook attacked by pawn)
+      if (isW) {
+        // Check if enemy (black) pawn attacks this square
+        if (rank < 8) {
+          if (file > 0 && game.get(String.fromCharCode('a'.codeUnitAt(0) + file - 1) + (rank + 1).toString())?.type.name.toLowerCase() == 'p' && game.get(String.fromCharCode('a'.codeUnitAt(0) + file - 1) + (rank + 1).toString())?.color == chess.Color.BLACK) {
+            if (pType == 'q') {
+              positionalBonus -= 150;
+            } else if (pType == 'r') {
+              positionalBonus -= 80;
+            } else if (pType == 'n' || pType == 'b') {
+              positionalBonus -= 40;
+            }
+          }
+          if (file < 7 && game.get(String.fromCharCode('a'.codeUnitAt(0) + file + 1) + (rank + 1).toString())?.type.name.toLowerCase() == 'p' && game.get(String.fromCharCode('a'.codeUnitAt(0) + file + 1) + (rank + 1).toString())?.color == chess.Color.BLACK) {
+            if (pType == 'q') {
+              positionalBonus -= 150;
+            } else if (pType == 'r') {
+              positionalBonus -= 80;
+            } else if (pType == 'n' || pType == 'b') {
+              positionalBonus -= 40;
+            }
+          }
+        }
+      } else {
+        // Check if enemy (white) pawn attacks this square
+        if (rank > 1) {
+          if (file > 0 && game.get(String.fromCharCode('a'.codeUnitAt(0) + file - 1) + (rank - 1).toString())?.type.name.toLowerCase() == 'p' && game.get(String.fromCharCode('a'.codeUnitAt(0) + file - 1) + (rank - 1).toString())?.color == chess.Color.WHITE) {
+            if (pType == 'q') {
+              positionalBonus -= 150;
+            } else if (pType == 'r') {
+              positionalBonus -= 80;
+            } else if (pType == 'n' || pType == 'b') {
+              positionalBonus -= 40;
+            }
+          }
+          if (file < 7 && game.get(String.fromCharCode('a'.codeUnitAt(0) + file + 1) + (rank - 1).toString())?.type.name.toLowerCase() == 'p' && game.get(String.fromCharCode('a'.codeUnitAt(0) + file + 1) + (rank - 1).toString())?.color == chess.Color.WHITE) {
+            if (pType == 'q') {
+              positionalBonus -= 150;
+            } else if (pType == 'r') {
+              positionalBonus -= 80;
+            } else if (pType == 'n' || pType == 'b') {
+              positionalBonus -= 40;
+            }
+          }
+        }
+      }
 
       // 1. Pawn Structure (Passed, Doubled, Isolated)
       if (pType == 'p') {
@@ -330,6 +472,20 @@ int evaluatePosition(chess.Chess game, [AIPersonalityId personality = AIPersonal
   if (whiteBishops >= 2) whiteScore += 45;
   if (blackBishops >= 2) blackScore += 45;
 
+  // Opening Development (first 10 plies): Penalize leaving minor pieces undeveloped on home squares
+  final plyCount = game.history.length;
+  if (plyCount <= 10) {
+    if (game.get('b1')?.type.name.toLowerCase() == 'n' && game.get('b1')?.color == chess.Color.WHITE) whiteScore -= 15;
+    if (game.get('g1')?.type.name.toLowerCase() == 'n' && game.get('g1')?.color == chess.Color.WHITE) whiteScore -= 15;
+    if (game.get('c1')?.type.name.toLowerCase() == 'b' && game.get('c1')?.color == chess.Color.WHITE) whiteScore -= 15;
+    if (game.get('f1')?.type.name.toLowerCase() == 'b' && game.get('f1')?.color == chess.Color.WHITE) whiteScore -= 15;
+
+    if (game.get('b8')?.type.name.toLowerCase() == 'n' && game.get('b8')?.color == chess.Color.BLACK) blackScore -= 15;
+    if (game.get('g8')?.type.name.toLowerCase() == 'n' && game.get('g8')?.color == chess.Color.BLACK) blackScore -= 15;
+    if (game.get('c8')?.type.name.toLowerCase() == 'b' && game.get('c8')?.color == chess.Color.BLACK) blackScore -= 15;
+    if (game.get('f8')?.type.name.toLowerCase() == 'b' && game.get('f8')?.color == chess.Color.BLACK) blackScore -= 15;
+  }
+
   // Personality adjustments
   int personalityMod = 0;
   if (personality == AIPersonalityId.aggressive) {
@@ -385,7 +541,14 @@ int quiescence(
     final captureMoves = <Map<String, dynamic>>[];
     for (final m in rawMoves) {
       final map = m as Map<String, dynamic>;
-      if (inCheck || map['captured'] != null || map['flags'].toString().contains('p')) {
+      if (inCheck) {
+        captureMoves.add(map);
+      } else if (map['captured'] != null || map['flags'].toString().contains('p')) {
+        // SEE Pruning: Prune losing captures (e.g. Queen takes defended pawn)
+        final isPromo = map['flags'].toString().contains('p');
+        if (!isPromo && staticExchangeEvaluation(game, map) < 0) {
+          continue;
+        }
         captureMoves.add(map);
       }
     }
@@ -421,7 +584,14 @@ int quiescence(
     final captureMoves = <Map<String, dynamic>>[];
     for (final m in rawMoves) {
       final map = m as Map<String, dynamic>;
-      if (inCheck || map['captured'] != null || map['flags'].toString().contains('p')) {
+      if (inCheck) {
+        captureMoves.add(map);
+      } else if (map['captured'] != null || map['flags'].toString().contains('p')) {
+        // SEE Pruning: Prune losing captures
+        final isPromo = map['flags'].toString().contains('p');
+        if (!isPromo && staticExchangeEvaluation(game, map) < 0) {
+          continue;
+        }
         captureMoves.add(map);
       }
     }
@@ -597,11 +767,25 @@ MinimaxResult minimax(
     if (hashFrom != null && a['from'] == hashFrom && a['to'] == hashTo) aScore += 30000;
     if (hashFrom != null && b['from'] == hashFrom && b['to'] == hashTo) bScore += 30000;
 
-    // 2. Captures MVV-LVA
+    // 2. Captures MVV-LVA with SEE validation
     final aCaptured = a['captured']?.toString() ?? '';
     final bCaptured = b['captured']?.toString() ?? '';
-    if (aCaptured.isNotEmpty) aScore += (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(a, game)] ?? 0) + 10000;
-    if (bCaptured.isNotEmpty) bScore += (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(b, game)] ?? 0) + 10000;
+    if (aCaptured.isNotEmpty) {
+      final aSee = staticExchangeEvaluation(game, a);
+      if (aSee >= 0) {
+        aScore += (PIECE_VALUES[aCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(a, game)] ?? 0) + 10000 + aSee;
+      } else {
+        aScore -= 8000; // Losing capture: search AFTER quiet moves and killers!
+      }
+    }
+    if (bCaptured.isNotEmpty) {
+      final bSee = staticExchangeEvaluation(game, b);
+      if (bSee >= 0) {
+        bScore += (PIECE_VALUES[bCaptured] ?? 0) * 10 - (PIECE_VALUES[_movingPieceType(b, game)] ?? 0) + 10000 + bSee;
+      } else {
+        bScore -= 8000;
+      }
+    }
 
     if (a['flags'].toString().contains('p')) aScore += 9000;
     if (b['flags'].toString().contains('p')) bScore += 9000;

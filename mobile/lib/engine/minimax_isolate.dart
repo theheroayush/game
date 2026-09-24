@@ -48,55 +48,6 @@ String? _formatPromotion(dynamic promo) {
 }
 
 
-/// Check if a candidate move hangs significant material.
-/// Returns the net material loss in centipawns if the opponent can immediately
-/// capture a piece worth more than what was captured.
-/// Returns 0 if the move is safe, or a positive value indicating how much material is lost.
-int _materialLoss(chess.Chess baseGame, Map<String, dynamic> move) {
-  try {
-    final temp = chess.Chess.fromFEN(baseGame.fen);
-    final moved = temp.move(move);
-    if (!moved) return 0;
-
-    // What did we capture on this move?
-    final captured = move['captured']?.toString() ?? '';
-    final capturedValue = _pieceVal(captured);
-
-
-    // Now check: can the opponent immediately recapture on the 'to' square
-    // with a piece worth less than what we moved there?
-    int worstLoss = 0;
-    final oppMoves = temp.moves({'verbose': true});
-    for (final om in oppMoves) {
-      final oMap = om as Map<String, dynamic>;
-      final oCaptured = oMap['captured']?.toString() ?? '';
-      if (oCaptured.isEmpty) continue;
-
-      // Opponent captures our piece on 'to' square (or anywhere else)
-      final oCapturedValue = _pieceVal(oCaptured);
-      if (oCapturedValue > capturedValue) {
-        // Net loss: we gained capturedValue but lost oCapturedValue
-        final netLoss = oCapturedValue - capturedValue;
-        if (netLoss > worstLoss) worstLoss = netLoss;
-      }
-    }
-    return worstLoss;
-  } catch (_) {}
-  return 0;
-}
-
-int _pieceVal(String p) {
-  switch (p) {
-    case 'p': case 'pawn': return 100;
-    case 'n': case 'knight': return 325;
-    case 'b': case 'bishop': return 335;
-    case 'r': case 'rook': return 500;
-    case 'q': case 'queen': return 900;
-    case 'k': case 'king': return 20000;
-    default: return 0;
-  }
-}
-
 // Top-level worker function executed in background Dart Isolate
 AIMoveResponse computeAIMove(AIMoveRequest request) {
   final game = chess.Chess.fromFEN(request.fen);
@@ -145,38 +96,9 @@ AIMoveResponse computeAIMove(AIMoveRequest request) {
     );
   }
 
-  // 3. ALWAYS play the minimax-verified best move.
-  //    Difficulty scaling is achieved through search depth alone:
-  //    - Level 1 (depth 2) naturally misses deep tactics
-  //    - Level 10 (depth 8) plays near-perfect chess
-  //    No noise, temperature, or blunder injection — those caused the AI
-  //    to trade Queens for pawns by overriding the engine's correct evaluation.
-  Map<String, dynamic> chosen = searchResult.bestMove ?? rootMoves.first.move;
+  // 3. Play the verified best move found by Minimax search
+  final Map<String, dynamic> chosenMove = searchResult.bestMove ?? rootMoves.first.move;
 
-  // 4. Final material safety verification:
-  //    Even the minimax best move could hang material if search depth was
-  //    insufficient (e.g. depth 2 missing a 3-move tactic). Check if the
-  //    chosen move allows the opponent to immediately win material.
-  final loss = _materialLoss(game, chosen);
-  if (loss >= 200) {
-    // The "best" move hangs significant material (opponent can immediately
-    // capture a piece worth 200+ cp more than what we captured).
-    // Search rootMoves for a safer alternative.
-    Map<String, dynamic>? safestMove;
-    int lowestLoss = loss;
-    for (final sm in rootMoves) {
-      final mLoss = _materialLoss(game, sm.move);
-      if (mLoss < lowestLoss) {
-        lowestLoss = mLoss;
-        safestMove = sm.move;
-      }
-    }
-    if (safestMove != null && lowestLoss < loss) {
-      chosen = safestMove;
-    }
-  }
-
-  final Map<String, dynamic> chosenMove = chosen;
   String? promo = _formatPromotion(chosenMove['promotion']);
   final piece = game.get(chosenMove['from'].toString());
   final toSq = chosenMove['to'].toString();
