@@ -1,7 +1,16 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -24,9 +33,35 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        create("release") {
+            val keyPasswordProp = keystoreProperties.getProperty("keyPassword")
+            val keyAliasProp = keystoreProperties.getProperty("keyAlias")
+            val storePasswordProp = keystoreProperties.getProperty("storePassword")
+            val storeFileProp = keystoreProperties.getProperty("storeFile")
+            if (keyPasswordProp != null && keyAliasProp != null && storePasswordProp != null && storeFileProp != null) {
+                keyPassword = keyPasswordProp
+                keyAlias = keyAliasProp
+                storePassword = storePasswordProp
+                storeFile = file(storeFileProp)
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

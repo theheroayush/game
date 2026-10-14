@@ -41,3 +41,8 @@ Thumbs.db
 
 # Agent workspaces
 .agents/
+
+# Android Keystores & Signing
+*.jks
+*.keystore
+key.properties
