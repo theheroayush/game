@@ -1,177 +1,136 @@
-﻿# ♟️ Apex Chess Master — Modern Web Chess & Training Platform
+# ♟️ Apex Chess Master — Dual-Platform Engine & Training Suite
+### 🌐 Web (React 19 + TypeScript) &nbsp;|&nbsp; 📱 Mobile (Flutter + Android App Bundle)
 
-[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg)](https://www.typescriptlang.org/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC.svg)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GitHub](https://img.shields.io/badge/GitHub-theheroayush%2Fgame-blue.svg)](https://github.com/theheroayush/game)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg?logo=flutter)](https://flutter.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Google Play Store Ready](https://img.shields.io/badge/Google%20Play-Release%20Ready-34A853.svg?logo=google-play)](PLAY_STORE_LISTING.md)
+[![Zero Permissions](https://img.shields.io/badge/Permissions-Zero%20Required-00C853.svg)](#-privacy-first--zero-permissions-architecture)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Welcome to **Apex Chess Master**! ♟️✨
-
-**Apex Chess Master** is a web chess game and training suite that runs right inside your web browser. Whether you are playing your very first game of chess or training to become a tournament champion, Apex Chess gives you smart AI opponents, tactical puzzles, opening guides, and a personal AI Coach to help you learn and have fun!
+**Apex Chess Master** is a high-performance, Tier-1 chess platform built for both **Web** and **Android (Google Play Store)**. Powered by a custom minimax engine featuring **Static Exchange Evaluation (SEE)**, **SEE-filtered Quiescence Search**, and **Tapered Positional Evaluation**, Apex Chess Master delivers human-like tactical play with zero piece-drops or unrealistic blunders.
 
 ---
 
-## 🌟 What Makes Apex Chess Awesome?
+## 🌟 Key Highlights
 
 ```
- ┌───────────────────────────────────────────────────────────────────────────┐
- │                           ♟️ APEX CHESS MASTER                            │
- ├───────────────────┬───────────────────┬───────────────────┬───────────────┤
- │  🤖 10 AI Levels  │  🎭 4 Bot Styles  │  👨‍🏫 Game Review   │  🧩 Puzzles   │
- │  Beginner to GM   │  Attack / Defend  │  Coach Analysis   │  15 Drills    │
- └───────────────────┴───────────────────┴───────────────────┴───────────────┘
+ ┌───────────────────────────────────────────────────────────────────────────────┐
+ │                            ♟️ APEX CHESS MASTER                               │
+ ├───────────────────┬───────────────────┬───────────────────┬───────────────────┤
+ │  🤖 10 AI Levels  │  🧠 Tier-1 Engine │  📱 Play Store AAB│  🛡️ Zero Perms   │
+ │  Elo 600 to 2500  │  AlphaBeta + SEE  │  R8 Minified      │  100% Offline     │
+ ├───────────────────┼───────────────────┼───────────────────┼───────────────────┤
+ │  👨‍🏫 AI Coach     │  ⚡ Threat Arrows │  ⏱️ Tactics Sprint│  🎨 Custom Themes │
+ │  Accuracy & Review│  Best Move Visual │  Puzzle Rush      │  Wood / Onyx / Neo│
+ └───────────────────┴───────────────────┴───────────────────┴───────────────────┘
 ```
 
-### 1. 🤖 10 Bot Difficulty Levels (For All Skill Levels)
-You don't need to be a grandmaster to enjoy playing! Choose from 10 calibrated difficulty tiers:
-- **Level 1–3 (Beginner / Elo 600–1000)**: Friendly bots that make fun mistakes, giving you plenty of chances to attack and win.
-- **Level 4–6 (Intermediate / Elo 1200–1600)**: Good club-level bots that test your tactics and basic openings.
-- **Level 7–8 (Advanced / Elo 1800–2000)**: Strong tactical bots that calculate several moves ahead.
-- **Level 9–10 (Master & Grandmaster / Elo 2200–2500+)**: Near-perfect play powered by deep Minimax search algorithms.
+### 1. 🧠 Grandmaster-Grade Engine Architecture
+- **Alpha-Beta Minimax with Iterative Deepening**: Explores up to depth 8 in background isolates / web workers without freezing the UI.
+- **Static Exchange Evaluation (SEE)**: Simulates full capture sequences on contested squares using smallest-attacker-first heuristics to prevent giving away pieces for defended pawns.
+- **SEE-Filtered Quiescence Search**: Prunes losing tactical trades before they pollute search trees.
+- **Tapered Positional Evaluation**: Interpolates King piece-square tables smoothly between opening/middlegame and endgame phases.
+- **10 Calibrated Elo Tiers**: From Jimmy (600 Elo) to Magnus AI (2500 Elo).
 
-### 2. 🎭 4 Dynamic Bot Personalities
-Play against bots with unique playing styles:
-- ⚔️ **The Valkyrie**: Aggressive attacker who loves sacrificing pieces to hunt your King.
-- 🛡️ **The Architect**: Solid positional defender who builds fortress-like pawn structures.
-- 🪄 **The Magician**: Tricky tactical player who loves surprise forks, skewers, and pins.
-- ⚖️ **Harmonic**: Balanced, patient tournament style.
+### 2. 📱 Google Play Store Ready (Android)
+- **Production Signed Bundle**: `mobile/build/app/outputs/bundle/release/app-release.aab` (50.5 MB).
+- **Hardened R8 / ProGuard Optimization**: Code shrinking, dead code elimination, and resource stripping enabled.
+- **Zero-Permissions Architecture**: Stripped all unnecessary permissions (`INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE`). Requires **0 special permissions**, completely exempting the app from Google Play's declaration forms and video demonstration requirements.
+- **Complete Listing & Policy Package**: Includes [`PLAY_STORE_LISTING.md`](PLAY_STORE_LISTING.md) and [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md).
 
-### 3. 👨‍🏫 Personal Chess Coach & Game Review
-After every game, click **"Coach Review"** to get a breakdown of your play:
-- **Accuracy Score (CAPS)**: See how accurate your moves were (0% to 100%).
-- **Move Classifications**: Finds your **Brilliant (💎)**, **Great (⭐)**, **Best (✅)** moves, as well as **Mistakes (⚠️)** and **Blunders (❌)**.
-- **Visual Arrows**: Green arrows show what you should have played; red arrows show where the mistake happened.
-- **"Retry Move" Mode**: Rewind to your biggest mistakes and try finding the winning move yourself!
+### 3. 👨‍🏫 Personal Coach & Game Review
+- **CAPS Accuracy Metric**: Evaluates play quality from 0% to 100%.
+- **Move Classifications**: Flags Brilliant (💎), Great (⭐), Best (✅), Inaccuracy (?!), Mistake (?), and Blunder (??).
+- **Visual Coaching Overlays**: Live threat arrows, best-move indicators, and territorial control heatmaps.
+- **Blunder Remediation**: Rewind to critical mistakes and solve for the best continuation.
 
-### 4. 🧩 Tactical Puzzles & Puzzle Rush
-- **15 Hand-Crafted Puzzles**: Practice forks, pins, back-rank checkmates, and deflection tactics.
-- **Timed Modes**: Play **3-Minute Rush**, **5-Minute Rush**, or **Survival Mode** (3 strikes and you're out).
-
-### 5. 📚 Master Opening Explorer & Endgame Drills
-- **Opening Guide**: Step through famous chess openings (e.g., *Sicilian Defense*, *Queen's Gambit*, *Ruy Lopez*, *French Defense*) with interactive guide arrows.
-- **Endgame Drills**: Practice theoretical winning endgames (like King + Rook vs King, Queen vs Pawn on 7th rank) against an active computer defense.
-
-### 6. 🎨 Beautiful Tournament Board Themes
-Customize your chessboard with 5 premium themes and piece styles:
-- **Board Themes**: Emerald Classic, Slate Dark, Walnut Wood, Sapphire Neon, and Carbon Night.
-- **Piece Styles**: Staunton, Neo Modern, Woodcraft, Alpha, and Minimalist.
+### 4. 🧩 Training Drills & Practice Modes
+- **Tactical Puzzle Rush**: Hand-crafted puzzles with 3-minute, 5-minute, and survival formats.
+- **Endgame Studies**: Theoretical endings (Rook vs King, Queen vs Pawn, King + Pawn races).
+- **Master Opening Explorer**: Interactive visual guides for Sicilian, Ruy Lopez, Queen's Gambit, French, Caro-Kann, and London systems.
+- **Coordinate Trainer**: Fast-paced board vision drill.
 
 ---
 
-## 🚀 How to Start Playing in 10 Seconds (Super Easy)
-
-You do **NOT** need any coding knowledge or extra software!
-
-### Easiest Way:
-1. Open this folder on your computer.
-2. Double-click the file named **`index.html`**.
-3. It will open immediately in your web browser (Google Chrome, Microsoft Edge, Safari, Brave, or Firefox).
-4. Click **"New Game"**, choose your favorite AI level, and make your first move!
-
----
-
-## 🎮 Game Controls & How to Play
-
-| Action | How to Do It |
-|---|---|
-| **Move a Piece** | Click the piece you want to move. Green dots appear on all legal squares. Click your target square (or simply drag and drop). |
-| **Castle** | Move your King two squares toward the Rook (e1 to g1 or e1 to c1). |
-| **Pawn Promotion** | When your pawn reaches the other end of the board, a menu automatically opens to let you choose **Queen, Rook, Bishop, or Knight**. |
-| **En Passant** | Fully supported! Capture an enemy pawn that moved 2 squares past yours. |
-| **Flip Board** | Click the **Flip Board** button (or press `F` on your keyboard) to view the board from Black's perspective. |
-| **Step Through Moves** | Use the `←` (Previous) and `→` (Next) buttons or keyboard arrow keys. |
-
----
-
-## ⏱️ Game Modes & Time Controls
-
-- ⚡ **Bullet**: Fast 1-minute or 2-minute games.
-- 🔥 **Blitz**: 3-minute and 5-minute action games.
-- ⏳ **Rapid**: 10-minute and 15-minute standard games.
-- 🧘 **Casual / Unlimited**: No clock pressure. Take as much time as you want to think!
-- 👥 **2-Player Pass & Play**: Play against a friend sitting beside you on the same device.
-
----
-
-## 📁 Clean Project Structure
+## 📁 Repository Structure
 
 ```
 game/
-├── index.html              # 🌐 Main web entry file (Double-click to play!)
-├── package.json            # 📦 Project dependencies & scripts
-├── README.md               # 📖 This complete guide
-├── LICENSE                 # ⚖️ MIT Open Source License
-├── .gitignore              # 🛡️ Clean exclusion of build caches
-├── vite.config.ts          # ⚡ Lightning-fast Vite build configuration
-├── tailwind.config.js      # 🎨 Board themes and modern styling
+├── PLAY_STORE_LISTING.md        # 📋 Google Play Store title, description, and console checklist
+├── PRIVACY_POLICY.md            # 🔒 GDPR & Google Play compliant privacy policy
 │
-├── public/                 # 🖼️ Vector piece icons, sounds & favicon
+├── mobile/                      # 📱 Mobile App (Flutter / Android / iOS)
+│   ├── lib/
+│   │   ├── engine/              # Minimax search, SEE, tapered evaluation, coach analysis
+│   │   ├── models/              # Engine configs, difficulty tiers, personalities, Elo models
+│   │   ├── services/            # Storage, haptics, procedural sound synthesizer
+│   │   └── ui/                  # Board, Play, Analysis, Puzzles, Openings, Tools screens
+│   ├── android/
+│   │   ├── app/
+│   │   │   ├── build.gradle.kts # Release signing, R8 minification, ProGuard config
+│   │   │   ├── proguard-rules.pro
+│   │   │   └── src/main/AndroidManifest.xml # Hardened zero-permissions manifest
+│   │   └── key.properties.example
+│   └── test/                    # Comprehensive unit, ELO calibration & tactical test suites
 │
-└── src/                    # 💻 Core Source Code
-    ├── main.tsx            # React root mount
-    ├── App.tsx             # Main Game Hub & view coordinator
-    │
-    ├── components/         # ♟️ UI Components (Board, Clock, EvalBar, CoachReview, Puzzles)
-    │   ├── ChessBoard.tsx  # Interactive 8x8 SVG chessboard
-    │   ├── AnalysisView.tsx# Move-by-move Game Review with CAPS score
-    │   ├── PuzzleView.tsx  # Tactical Puzzle Rush mode
-    │   ├── OpeningsView.tsx# Opening Explorer with guide arrows
-    │   └── EndgameView.tsx # Endgame trainer against live AI
-    │
-    ├── engine/             # 🧠 AI Decision Engine (Minimax + Alpha-Beta Pruning)
-    │   ├── aiWorker.ts     # Background web worker for instant moves
-    │   ├── evaluate.ts     # Piece-square tables, pawn structure & king safety
-    │   └── search.ts       # Move ordering & quiescence search
-    │
-    ├── data/               # 📚 Opening book repertoires & puzzle database
-    └── types/              # 📐 TypeScript game state & move definitions
+├── src/                         # 🌐 Web App (React 19 + TypeScript + Vite)
+│   ├── components/              # Interactive SVG board, eval bar, coach review, puzzle runner
+│   ├── engine/                  # TypeScript Minimax engine, evaluation, web worker isolate
+│   ├── data/                    # Openings repertoires and puzzle databases
+│   └── types/                   # Game definitions and move interfaces
+│
+├── index.html                   # 🌐 Web entry point
+├── package.json                 # Web dependencies and build scripts
+└── vite.config.ts               # Vite configuration
 ```
 
 ---
 
-## 💻 For Developers & Tech Enthusiasts (Optional)
+## 🚀 Getting Started
 
-If you would like to run the live development server or modify the code:
-
-### 1. Requirements
-- Node.js (version 18 or newer)
-- npm
-
-### 2. Commands
+### 🌐 Running the Web Application
 ```bash
-# 1. Install dependencies
+# Install dependencies
 npm install
 
-# 2. Start the local development server (with instant hot-reloading)
+# Start local development server with hot-reload
 npm run dev
 
-# 3. Build optimized production bundle
+# Build production bundle
 npm run build
+```
 
-# 4. Run Oxlint code quality verification (0 warnings, 0 errors)
-npm run lint
+### 📱 Running & Building the Mobile App (Flutter)
+```bash
+cd mobile
+
+# Get Flutter dependencies
+flutter pub get
+
+# Run static analysis (0 issues)
+flutter analyze
+
+# Run complete automated test suite
+flutter test
+
+# Build production signed Android App Bundle (.aab)
+flutter build appbundle --release
 ```
 
 ---
 
-## ❓ Frequently Asked Questions (FAQ)
+## 🛡️ Privacy-First & Zero-Permissions Architecture
 
-#### Q1: Is this game completely free?
-> **Yes, 100% free!** No subscriptions, no ads, and no in-app purchases.
-
-#### Q2: Can I play without an internet connection?
-> **Yes!** The game and all AI bots run entirely inside your browser and work 100% offline.
-
-#### Q3: Does it work on mobile phones and tablets?
-> **Yes!** The board automatically scales to fit phone and tablet screens with touch drag-and-drop support.
-
-#### Q4: Can I import and export PGN game records?
-> **Yes!** You can export your games to standard PGN notation or paste any PGN from Chess.com / Lichess to analyze it in the Coach Review.
+Apex Chess Master operates **100% on-device**:
+- ❌ **No account required**
+- ❌ **No telemetry or analytics tracking**
+- ❌ **No runtime permissions (`POST_NOTIFICATIONS` is disabled)**
+- ❌ **No internet access required to play**
+- ✅ **Tactile feedback uses standard Android View haptics (no `VIBRATE` permission required)**
 
 ---
 
-## ⚖️ License
-This project is open-source and licensed under the **MIT License**.
+## ⚖️ License & Credits
 
-**Created with ❤️ by Ayush Upadhyay ([@theheroayush](https://github.com/theheroayush))**
+Distributed under the **MIT License**. Created by Ayush Upadhyay ([@theheroayush](https://github.com/theheroayush)).
