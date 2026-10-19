@@ -14,9 +14,15 @@ Apex Chess Master is designed as a **privacy-first, offline-capable** chess appl
 ### Local Game Data
 All your gameplay history, career statistics, Elo ratings, tactical puzzle progress, and custom board settings are stored **locally on your device** using secure local storage (`SharedPreferences`). This data never leaves your device and is not synchronized to any external tracking server.
 
-### Permissions Used
-- **Vibration (`android.permission.VIBRATE`)**: Used exclusively to provide tactile haptic feedback when moving pieces, delivering checks, or capturing pieces.
-- **Internet (`android.permission.INTERNET`)**: Used only for fetching optional online updates, curated tactical puzzles, or opening theory databases. No personal user data is transmitted.
+### Zero Device Permissions Required
+Apex Chess Master requires **zero special device permissions** to run:
+- No location, camera, or microphone access
+- No media, storage, or photos access
+- No contacts or personal phone state access
+- No runtime notifications (`POST_NOTIFICATIONS` is completely disabled)
+- No internet connection required to play or train
+
+Tactile haptic sensations (when dropping pieces or delivering checks) utilize standard Android OS system touch feedback, requiring no special permission.
 
 ---
 

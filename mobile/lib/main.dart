@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models/chess_models.dart';
 import 'services/haptics_service.dart';
-import 'services/notification_service.dart';
 import 'services/sound_service.dart';
 import 'services/storage_service.dart';
 import 'ui/play/play_screen.dart';
@@ -18,16 +17,11 @@ void main() async {
 
   // Initialize offline services
   await StorageService.init();
-  await NotificationService.init();
 
   final settings = StorageService.loadSettings();
   SoundService.enabled = settings.soundEnabled;
   SoundService.volume = settings.soundVolume;
   HapticsService.enabled = settings.hapticsEnabled;
-
-  if (settings.dailyNotificationEnabled) {
-    NotificationService.scheduleDailyPracticeNotifications(enabled: true);
-  }
 
   runApp(ApexChessApp(initialSettings: settings));
 }

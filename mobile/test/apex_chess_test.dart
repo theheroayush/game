@@ -9,7 +9,6 @@ import 'package:apex_chess/data/openings_data.dart';
 import 'package:apex_chess/engine/evaluation.dart';
 import 'package:apex_chess/engine/minimax_isolate.dart';
 import 'package:apex_chess/engine/coach_analysis.dart';
-import 'package:apex_chess/services/sync_service.dart';
 import 'package:apex_chess/ui/board/chess_board_widget.dart';
 import 'package:apex_chess/ui/play/play_screen.dart';
 import 'package:apex_chess/ui/puzzles/puzzles_screen.dart';
@@ -181,11 +180,11 @@ void main() {
     });
   });
 
-  group('5. Cross-Platform Local Sync Tests', () {
-    test('SyncResult holds status and count', () {
-      const res = SyncResult(success: true, message: 'Synced', syncedGamesCount: 5);
-      expect(res.success, isTrue);
-      expect(res.syncedGamesCount, 5);
+  group('5. Offline Architecture Tests', () {
+    test('Offline-first settings preserve privacy defaults', () {
+      final settings = AppSettings();
+      expect(settings.soundEnabled, isTrue);
+      expect(settings.hapticsEnabled, isTrue);
     });
   });
 

@@ -79,12 +79,29 @@ Whether you are taking your first steps or preparing for your next tournament, A
 | **Default Language** | English (United States) - en-US |
 | **App Category** | Games > Board / Strategy |
 | **Tags** | Chess, Board Games, Strategy, Puzzle, Offline |
+| **Permissions Required** | **NONE (0 Permissions)** |
+| **Video Proof Required by Google Play?** | **NO (Exempt – no restricted/sensitive permissions declared)** |
 | **Content Rating** | Everyone (PEGI 3, ESRB Everyone) |
 | **Target Audience** | All ages (including Families) |
 | **Ads Declaration** | No (App contains no ads) |
 | **In-App Purchases** | No (100% free full game) |
 
 ---
+
+## 2.1 Zero-Permissions Exemption (No Video Demonstration Needed)
+
+> [!NOTE]
+> **Why You Do NOT Need to Upload Any Video to Google Play Console:**
+> Google Play Console **only** forces developers to submit declaration forms and YouTube video links when an app requests **sensitive, high-risk, or restricted permissions** (e.g. `SCHEDULE_EXACT_ALARM`, Foreground Services, `RECORD_AUDIO`, `CAMERA`, `READ_MEDIA_IMAGES`, `ACCESS_FINE_LOCATION`, or SMS/Call logs).
+>
+> By removing `flutter_local_notifications`, `http`, and all runtime/network permissions, **Apex Chess Master declares ZERO permissions**.
+>
+> When you go through Google Play Console setup:
+> - **Exact Alarms / Alarms questionnaire**: App does NOT declare exact alarms. (No form or video needed).
+> - **Foreground Services**: App does NOT use foreground services. (No form or video needed).
+> - **Notification Permissions**: App does NOT request `POST_NOTIFICATIONS`. (No prompt shown to users on install).
+> - **Data Safety Questionnaire**: Select **"No, this app does not collect or share any user data"**.
+> - **App Permissions in Play Console**: Google Play will automatically detect 0 permissions and display *"No permissions requested by this release"*.
 
 ## 3. Store Visual Asset Specifications
 

@@ -8,7 +8,6 @@ import '../../data/bot_banter_data.dart';
 import '../../engine/minimax_isolate.dart';
 import '../../engine/evaluation.dart';
 import '../../services/haptics_service.dart';
-import '../../services/notification_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/storage_service.dart';
 import '../board/board_painter.dart';
@@ -741,7 +740,6 @@ class _PlayScreenState extends State<PlayScreen> {
     );
 
     StorageService.saveGame(record);
-    NotificationService.scheduleDailyPracticeNotifications(enabled: widget.settings.dailyNotificationEnabled);
 
     showDialog(
       context: context,

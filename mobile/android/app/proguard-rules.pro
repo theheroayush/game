@@ -8,9 +8,6 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
-# Flutter Local Notifications
--keep class com.dexterous.flutterlocalnotifications.** { *; }
-
 # Google Play Core / Deferred Components warnings suppression
 -dontwarn com.google.android.play.core.**
 

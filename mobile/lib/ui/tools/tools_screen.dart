@@ -6,10 +6,8 @@ import 'package:chess/chess.dart' as chess;
 import '../../models/chess_models.dart';
 import '../../models/engine_config.dart';
 import '../../services/haptics_service.dart';
-import '../../services/notification_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/storage_service.dart';
-import '../../services/sync_service.dart';
 import '../board/chess_board_widget.dart';
 import '../board/staunton_pieces.dart';
 import '../theme/app_theme.dart';
@@ -48,9 +46,6 @@ class _ToolsScreenState extends State<ToolsScreen> {
   Timer? _coordTimer;
   bool _coordFlipped = false;
 
-  // Sync state
-  bool _isSyncing = false;
-  String? _syncMessage;
 
   @override
   void initState() {
@@ -138,20 +133,6 @@ class _ToolsScreenState extends State<ToolsScreen> {
     });
   }
 
-  // Server Sync
-  Future<void> _runSync() async {
-    setState(() {
-      _isSyncing = true;
-      _syncMessage = 'Syncing with local server...';
-    });
-
-    final res = await SyncService.syncWithLocalServer(widget.settings.localServerUrl);
-
-    setState(() {
-      _isSyncing = false;
-      _syncMessage = res.message;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -306,25 +287,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
             setState(() {});
           },
         ),
-        SwitchListTile(
-          title: const Text('Daily Practice Notifications', style: TextStyle(color: Colors.white, fontSize: 14)),
-          subtitle: const Text('Morning tactics & evening streak reminders', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-          value: widget.settings.dailyNotificationEnabled,
-          activeThumbColor: AppColors.emerald,
-          onChanged: (v) {
-            widget.settings.dailyNotificationEnabled = v;
-            NotificationService.scheduleDailyPracticeNotifications(enabled: v);
-            StorageService.saveSettings(widget.settings);
-            setState(() {});
-          },
-        ),
         const SizedBox(height: 20),
 
-        // 4. Local Server Cross-Platform Sync
-        const Text('LOCAL SERVER SYNCHRONIZATION', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+        // 4. Privacy & Offline Architecture
+        const Text('PRIVACY & OFFLINE ARCHITECTURE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
@@ -333,40 +302,51 @@ class _ToolsScreenState extends State<ToolsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: TextEditingController(text: widget.settings.localServerUrl),
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: const InputDecoration(
-                  labelText: 'Local Server Base URL',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: (v) {
-                  widget.settings.localServerUrl = v;
-                  StorageService.saveSettings(widget.settings);
-                },
+              Row(
+                children: const [
+                  Icon(Icons.shield_outlined, color: AppColors.emerald, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    '100% Offline & Private',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Apex Chess Master runs entirely on-device. No accounts, zero analytics tracking, and zero background permissions required.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.emerald.withValues(alpha: 0.4)),
+                    ),
+                    child: const Text(
+                      'ZERO PERMISSIONS',
+                      style: TextStyle(color: AppColors.emerald, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
                   ),
-                  icon: _isSyncing
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.sync, size: 18),
-                  label: const Text('Sync with Local Server'),
-                  onPressed: _isSyncing ? null : _runSync,
-                ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentBlue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.accentBlue.withValues(alpha: 0.4)),
+                    ),
+                    child: const Text(
+                      'ON-DEVICE ENGINE',
+                      style: TextStyle(color: AppColors.accentBlue, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+                  ),
+                ],
               ),
-              if (_syncMessage != null) ...[
-                const SizedBox(height: 8),
-                Text(_syncMessage!, style: const TextStyle(color: AppColors.emerald, fontSize: 12)),
-              ],
             ],
           ),
         ),
