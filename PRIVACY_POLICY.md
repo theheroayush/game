@@ -1,54 +1,27 @@
-# Privacy Policy for Apex Chess Master
+# Privacy Policy — Apex Chess Master: Play AI
 
-**Last updated:** October 15, 2026
+**Last updated: 19 October 2026**
 
-Apex Chess Master ("we," "our," or "the app") is committed to protecting your privacy. This Privacy Policy explains our practices regarding data collection, usage, and disclosure when you use the Apex Chess Master mobile application.
+Apex Chess Master: Play AI is an offline chess game. This policy describes the information handled by the Android app.
 
----
+## Information and storage
 
-## 1. Information Collection and Use
+The app does not require an account or ask you to provide your name, email address, or phone number. Game history, ratings, puzzle progress, settings, and statistics are stored locally in the app's private storage on your device. The checked Android release manifest does not request internet access, and the app does not send this gameplay data to a server.
 
-### Personal Data
-Apex Chess Master is designed as a **privacy-first, offline-capable** chess application. We do **not** require user accounts, email addresses, phone numbers, or any personally identifiable information (PII) to play.
+Uninstalling the app or clearing its app data removes the locally stored game information. Your device's operating system controls access to the app's private storage.
 
-### Local Game Data
-All your gameplay history, career statistics, Elo ratings, tactical puzzle progress, and custom board settings are stored **locally on your device** using secure local storage (`SharedPreferences`). This data never leaves your device and is not synchronized to any external tracking server.
+## Permissions and third-party services
 
-### Zero Device Permissions Required
-Apex Chess Master requires **zero special device permissions** to run:
-- No location, camera, or microphone access
-- No media, storage, or photos access
-- No contacts or personal phone state access
-- No runtime notifications (`POST_NOTIFICATIONS` is completely disabled)
-- No internet connection required to play or train
+The checked Android release manifest does not request internet, location, camera, microphone, contacts, media, or notification permissions. The app build reviewed for this policy contains no advertising or analytics SDKs. Core chess and training features work offline.
 
-Tactile haptic sensations (when dropping pieces or delivering checks) utilize standard Android OS system touch feedback, requiring no special permission.
+## Children
 
----
+The app does not require users to submit personal information and does not knowingly collect personal information from children. Parents or guardians can contact us using the channel below with questions about the app or this policy.
 
-## 2. Third-Party Services & Analytics
-Apex Chess Master does **not** sell, rent, or trade your personal data with third-party advertising brokers or tracking networks. We do not use intrusive advertising tracking SDKs.
+## Changes
 
----
+If this policy changes, the revised version and its effective date will be posted at this URL.
 
-## 3. Children's Privacy
-Apex Chess Master complies with the Children's Online Privacy Protection Act (COPPA) and Google Play Families Policy:
-- We do not knowingly collect personal information from children under 13.
-- The app contains no violent, suggestive, or inappropriate content and is rated **Everyone (PEGI 3)**.
+## Contact
 
----
-
-## 4. Security of Your Data
-Because your data is stored locally on your device, its security is maintained by your operating system's built-in sandbox protections. Uninstalling the app or clearing app data will reset your local stats.
-
----
-
-## 5. Changes to This Privacy Policy
-We may update our Privacy Policy from time to time. Any changes will be posted on this page with an updated "Last updated" date.
-
----
-
-## 6. Contact Us
-If you have any questions or suggestions regarding this Privacy Policy, please contact us at:
-- **Email:** support@apexchess.app (or your developer contact email)
-- **GitHub:** https://github.com/theheroayush/game
+For privacy questions, use the project's GitHub issue page: [https://github.com/theheroayush/game/issues](https://github.com/theheroayush/game/issues). Please do not include passwords, chess account credentials, or other sensitive personal information in a public issue.
