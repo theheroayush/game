@@ -47,9 +47,17 @@ import { VisualizationTrainer } from './components/VisualizationTrainer';
 
 export const App: React.FC = () => {
   // Navigation & Settings State
-  const [currentTab, setCurrentTab] = useState<NavigationTab>('play');
+  const [currentTab, setCurrentTab] = useState<NavigationTab>(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'game') return 'play';
+    if (['play', 'analysis', 'puzzles', 'openings', 'endgames', 'history', 'profile', 'editor', 'visualization'].includes(hash)) {
+      return hash as NavigationTab;
+    }
+    return 'play';
+  });
   const handleSelectTab = (tab: NavigationTab) => {
     setCurrentTab(tab);
+    window.location.hash = tab;
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -73,7 +81,9 @@ export const App: React.FC = () => {
   }, [settings]);
 
   // Active Game Configuration
-  const [gameState, setGameState] = useState<'lobby' | 'playing' | 'gameover'>('lobby');
+  const [gameState, setGameState] = useState<'lobby' | 'playing' | 'gameover'>(() => {
+    return window.location.hash === '#game' ? 'playing' : 'lobby';
+  });
   const [difficultyLevel, setDifficultyLevel] = useState<number>(3); // Default 1000 Elo Casual
   const [personality, setPersonality] = useState<AIPersonalityId>('balanced');
   const [sideSelection, setSideSelection] = useState<SideSelection>('w');

@@ -103,31 +103,29 @@ Whether you are taking your first steps or preparing for your next tournament, A
 > - **Data Safety Questionnaire**: Select **"No, this app does not collect or share any user data"**.
 > - **App Permissions in Play Console**: Google Play will automatically detect 0 permissions and display *"No permissions requested by this release"*.
 
-## 3. Store Visual Asset Specifications
+## 3. Ready-to-Upload Store Visual Assets
 
-Prepare the following image files when setting up the store listing:
+All visual assets have been rendered to Google Play's exact dimension specifications and are located in the [`store_assets/`](store_assets/) folder:
 
-1. **App Icon**:
-   - Format: PNG (32-bit with alpha)
-   - Dimensions: **512 x 512 px**
-   - Max file size: 1024 KB
-   *(Tip: Use the high-res icon located at `mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png` or scale your vector master to 512x512)*
+1. **App Icon (Mandatory)**:
+   - **File**: [`store_assets/icon_512x512.png`](store_assets/icon_512x512.png)
+   - **Dimensions**: **512 x 512 px** (PNG, 32-bit with alpha)
+   - **Status**: ✅ Ready to upload directly to Play Console.
 
 2. **Feature Graphic (Mandatory)**:
-   - Format: JPEG or 24-bit PNG (no alpha)
-   - Dimensions: **1024 x 500 px**
-   - Max file size: 15 MB
-   - Content: High-contrast title "Apex Chess Master" with 3D chess pieces (e.g., gold King & Queen) on a dark slate background.
+   - **File**: [`store_assets/feature_graphic_1024x500.png`](store_assets/feature_graphic_1024x500.png)
+   - **Dimensions**: **1024 x 500 px** (PNG, no alpha)
+   - **Design**: Cinematic luxury chess set with gold accents, "APEX CHESS MASTER" title branding, and feature badges.
+   - **Status**: ✅ Ready to upload directly to Play Console.
 
-3. **Phone Screenshots**:
-   - Minimum: 2 screenshots (Recommended: 4 to 6)
-   - Aspect ratio: 16:9 or 9:16 (e.g., **1080 x 1920 px** or **1080 x 2400 px**)
-   - Recommended slides:
-     - Slide 1: Main Menu & Personalized Chessboard Selection
-     - Slide 2: In-Game Chessboard vs Magnus AI with Live Banter
-     - Slide 3: Threat Arrows & Visual Best Move Coach
-     - Slide 4: 3-Minute Tactics Sprint Puzzle Screen
-     - Slide 5: Player Elo Career Profile & Win Analytics
+3. **Phone Screenshots (Mandatory - 5 High-Res Mobile Slides)**:
+   All screenshots are rendered at **1080 x 2160 px** in [`store_assets/screenshots/`](store_assets/screenshots/):
+   - **Slide 1**: [`1_gameplay_live.png`](store_assets/screenshots/1_gameplay_live.png) — Live match with threat arrows, evaluation bar, active timer clocks, and bot profile.
+   - **Slide 2**: [`2_tactical_puzzles.png`](store_assets/screenshots/2_tactical_puzzles.png) — 3-Minute Tactics Sprint and puzzle rush training mode.
+   - **Slide 3**: [`3_coach_analysis.png`](store_assets/screenshots/3_coach_analysis.png) — Move-by-move game review with CAPS accuracy score and blunder analysis.
+   - **Slide 4**: [`4_opening_explorer.png`](store_assets/screenshots/4_opening_explorer.png) — Master opening repertoire explorer with theory lines.
+   - **Slide 5**: [`5_endgame_trainer.png`](store_assets/screenshots/5_endgame_trainer.png) — Theoretical endgame practice against live computer defense.
+   - **Status**: ✅ Ready to select and upload all 5 slides to the Phone Screenshots section.
 
 ---
 
